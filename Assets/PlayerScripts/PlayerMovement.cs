@@ -29,7 +29,6 @@ public class PlayerMovement : MonoBehaviour
 
     private void FixedUpdate() {
         MovePlayer();
-        Debug.Log(moveDirection);
     }
 
     private void MyInput() {
