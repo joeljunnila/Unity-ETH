@@ -1,13 +1,15 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Netcode;
 
-public class PlayerMovement : MonoBehaviour
+public class PlayerMovement : NetworkBehaviour
 {
     [Header("Movement")]
     public float moveSpeed;
 
     public Transform orientation;
+    public Camera playerCamera;
 
     float horizontalInput;
     float verticalInput;
@@ -18,12 +20,33 @@ public class PlayerMovement : MonoBehaviour
 
     Rigidbody rb;
 
-    private void Start() {
+    public override void OnNetworkSpawn()
+    {
         rb = GetComponent<Rigidbody>();
         rb.freezeRotation = true;
+
+        if (IsOwner)
+        {
+            // Enable the camera for the local player
+            if (playerCamera != null)
+            {
+                playerCamera.gameObject.SetActive(true);
+                playerCamera.transform.SetParent(transform);  // Attach camera to the player
+                playerCamera.transform.localPosition = new Vector3(0, 1, 0);  // Adjust camera position
+            }
+        }
+        else
+        {
+            // Disable the camera for non-local players
+            if (playerCamera != null)
+            {
+                playerCamera.gameObject.SetActive(false);
+            }
+        }
     }
 
     private void Update() {
+        if (!IsOwner) return;
         MyInput();
     }
 
