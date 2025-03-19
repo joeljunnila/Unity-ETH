@@ -1,42 +1,61 @@
 using UnityEngine;
+using Unity.Netcode;
+using System.Collections;
 
-public class Door : MonoBehaviour
+public class Door : NetworkBehaviour
 {
-
     public float openAngle = 90f;
     public float openSpeed = 2f;
     public KeyCode interactKey = KeyCode.E;
 
     private Quaternion closedRotation;
     private Quaternion openRotation;
-    private bool isOpen = false;
+
+    private NetworkVariable<bool> isOpen = new NetworkVariable<bool>(false, 
+        NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+    private Coroutine doorAnimationCoroutine;
 
     void Start()
     {
         closedRotation = transform.rotation;
         openRotation = Quaternion.Euler(transform.eulerAngles + new Vector3(0, openAngle, 0));
+
+        // Sync door state when it changes
+        isOpen.OnValueChanged += (oldValue, newValue) => StartDoorAnimation(newValue);
     }
 
     void Update()
     {
-
         if (Input.GetKeyDown(interactKey))
         {
-            ToggleDoor();
-        }
-
-        if (isOpen)
-        {
-            transform.rotation = Quaternion.Lerp(transform.rotation, openRotation, Time.deltaTime * openSpeed);
-        }
-        else
-        {
-            transform.rotation = Quaternion.Lerp(transform.rotation, closedRotation, Time.deltaTime * openSpeed);
+            RequestToggleDoorServerRpc();
         }
     }
 
-    private void ToggleDoor()
+    [ServerRpc(RequireOwnership = false)]
+    private void RequestToggleDoorServerRpc(ServerRpcParams rpcParams = default)
     {
-        isOpen = !isOpen;
+        isOpen.Value = !isOpen.Value;
+    }
+
+    private void StartDoorAnimation(bool open)
+    {
+        if (doorAnimationCoroutine != null)
+        {
+            StopCoroutine(doorAnimationCoroutine);
+        }
+        doorAnimationCoroutine = StartCoroutine(AnimateDoor(open));
+    }
+
+    private IEnumerator AnimateDoor(bool open)
+    {
+        Quaternion targetRotation = open ? openRotation : closedRotation;
+        while (Quaternion.Angle(transform.rotation, targetRotation) > 0.1f)
+        {
+            transform.rotation = Quaternion.Lerp(transform.rotation, targetRotation, Time.deltaTime * openSpeed);
+            yield return null;
+        }
+        transform.rotation = targetRotation; // Ensure exact final rotation
     }
 }

@@ -9,7 +9,6 @@ public class InRoomScript : MonoBehaviour {
     public void OnTriggerEnter(Collider other) {
         inRoom = 1;
         lightSource.enabled = !lightSource.enabled; // Toggle light on/off
-        Debug.Log(inRoom);
     }
 
     public void OnTriggerStay(Collider other)
