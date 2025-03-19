@@ -962,6 +962,27 @@ MonoBehaviour:
   AutoObjectParentSync: 1
   SyncOwnerTransformWhenParented: 1
   AllowOwnerToParent: 0
+--- !u!135 &594460729
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 594460724}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Radius: 5
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &893246654
 GameObject:
   m_ObjectHideFlags: 0
@@ -1326,6 +1347,14 @@ PrefabInstance:
       propertyPath: m_Enabled
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 4080243883457900367, guid: 93d5fb48df3f24b4889b68c9a609650c, type: 3}
+      propertyPath: interactionRange
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 5517325839240180285, guid: 93d5fb48df3f24b4889b68c9a609650c, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 142e0e2593d008b41a37c956af030126, type: 2}
     - target: {fileID: 6562707566322908845, guid: 93d5fb48df3f24b4889b68c9a609650c, type: 3}
       propertyPath: m_LocalPosition.x
       value: 7.24
@@ -1372,11 +1401,14 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 1075850090532464275, guid: 93d5fb48df3f24b4889b68c9a609650c, type: 3}
+      insertIndex: 1
+      addedObject: {fileID: 594460728}
+    - targetCorrespondingSourceObject: {fileID: 1075850090532464275, guid: 93d5fb48df3f24b4889b68c9a609650c, type: 3}
       insertIndex: -1
       addedObject: {fileID: 594460727}
     - targetCorrespondingSourceObject: {fileID: 1075850090532464275, guid: 93d5fb48df3f24b4889b68c9a609650c, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 594460728}
+      addedObject: {fileID: 594460729}
   m_SourcePrefab: {fileID: 100100000, guid: 93d5fb48df3f24b4889b68c9a609650c, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

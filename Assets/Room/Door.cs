@@ -7,6 +7,7 @@ public class Door : NetworkBehaviour
     public float openAngle = 90f;
     public float openSpeed = 2f;
     public KeyCode interactKey = KeyCode.E;
+    public float interactionRange = 2f; // Max distance to open the door
 
     private Quaternion closedRotation;
     private Quaternion openRotation;
@@ -36,7 +37,22 @@ public class Door : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     private void RequestToggleDoorServerRpc(ServerRpcParams rpcParams = default)
     {
+        if (!IsPlayerNearby()) return; // Prevent toggling if no player is close
         isOpen.Value = !isOpen.Value;
+    }
+
+    private bool IsPlayerNearby()
+    {
+        Collider[] colliders = Physics.OverlapSphere(transform.position, interactionRange);
+        foreach (Collider col in colliders)
+        {
+            if (col.CompareTag("Player")) // Ensure player objects have the "Player" tag
+            {
+                Debug.Log("toimii");
+                return true;
+            }
+        }
+        return false;
     }
 
     private void StartDoorAnimation(bool open)
