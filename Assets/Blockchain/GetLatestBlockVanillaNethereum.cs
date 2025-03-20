@@ -10,28 +10,34 @@ public class GetLatestBlockVanillaNethereum : MonoBehaviour
 {
     private static bool TrustCertificate(object sender, X509Certificate x509Certificate, X509Chain x509Chain, SslPolicyErrors sslPolicyErrors)
     {
-        // Accept all certificates
         return true;
     }
 
-    private string Url = "http://localhost:8545";
+    private string Url = "http://localhost:8545/";
+    private bool isRunning = true;
 
-    // Use this for initialization
     async void Start()
     {
+        isRunning = true;
         await CheckBlockNumberPeriodically();
     }
 
-    public async Task CheckBlockNumberPeriodically()
+    async Task CheckBlockNumberPeriodically()
     {
         var wait = 1000;
-        while (true)
+        while (isRunning)
         {
             await Task.Delay(wait);
-            wait = 1000;
+            if (!isRunning) break;
+
             var web3 = new Web3(new UnityWebRequestRpcTaskClient(new Uri(Url)));
             var blockNumber = await web3.Eth.Blocks.GetBlockNumber.SendRequestAsync();
             Debug.Log($"Latest Block Number: {blockNumber.Value}");
         }
+    }
+
+    void OnDestroy()
+    {
+        isRunning = false;
     }
 }

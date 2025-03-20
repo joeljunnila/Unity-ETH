@@ -9,13 +9,13 @@ public class Door : NetworkBehaviour
     public KeyCode interactKey = KeyCode.E;
     public float interactionRange = 2f; // Max distance to open the door
 
-    private Quaternion closedRotation;
-    private Quaternion openRotation;
+    public Quaternion closedRotation;
+    public Quaternion openRotation;
 
-    private NetworkVariable<bool> isOpen = new NetworkVariable<bool>(false, 
+    public NetworkVariable<bool> isOpen = new NetworkVariable<bool>(false, 
         NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
-    private Coroutine doorAnimationCoroutine;
+    public Coroutine doorAnimationCoroutine;
 
     void Start()
     {
@@ -35,27 +35,34 @@ public class Door : NetworkBehaviour
     }
 
     [ServerRpc(RequireOwnership = false)]
-    private void RequestToggleDoorServerRpc(ServerRpcParams rpcParams = default)
+    public void RequestToggleDoorServerRpc(ServerRpcParams rpcParams = default)
     {
-        if (!IsPlayerNearby()) return; // Prevent toggling if no player is close
-        isOpen.Value = !isOpen.Value;
+         if (!IsPlayerNearby()) return; // Prevent toggling if no player is close
+    
+    // Log the current state
+    Debug.Log($"Toggling door state. Current state: {isOpen.Value}");
+
+    isOpen.Value = !isOpen.Value;  // Toggle the state
+
+    // Log the new state
+    Debug.Log($"New door state: {isOpen.Value}");
     }
 
-    private bool IsPlayerNearby()
+    public bool IsPlayerNearby()
     {
         Collider[] colliders = Physics.OverlapSphere(transform.position, interactionRange);
         foreach (Collider col in colliders)
         {
             if (col.CompareTag("Player")) // Ensure player objects have the "Player" tag
             {
-                Debug.Log("toimii");
+                Debug.Log(isOpen.Value);
                 return true;
             }
         }
         return false;
     }
 
-    private void StartDoorAnimation(bool open)
+    public void StartDoorAnimation(bool open)
     {
         if (doorAnimationCoroutine != null)
         {
@@ -64,7 +71,7 @@ public class Door : NetworkBehaviour
         doorAnimationCoroutine = StartCoroutine(AnimateDoor(open));
     }
 
-    private IEnumerator AnimateDoor(bool open)
+    public IEnumerator AnimateDoor(bool open)
     {
         Quaternion targetRotation = open ? openRotation : closedRotation;
         while (Quaternion.Angle(transform.rotation, targetRotation) > 0.1f)
