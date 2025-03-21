@@ -1,21 +1,22 @@
+using Unity.Netcode;
 using UnityEngine;
 
-public class MouseControl : MonoBehaviour
+public class MouseControl : NetworkBehaviour
 {
-    public KeyCode toggleKey = KeyCode.Tab;  // Set the key to toggle mouse visibility
+    public KeyCode toggleKey = KeyCode.Tab;
+    public static bool isCameraFrozen = false; // Flag to freeze camera movement
 
     void Update()
     {
-        // If the toggle key is pressed
+        if (!IsOwner) return; // Ensure this only runs for the local player
+
         if (Input.GetKeyDown(toggleKey))
         {
-            // Toggle the cursor visibility
             bool isCursorVisible = Cursor.visible;
             Cursor.visible = !isCursorVisible;
-        
-
-            // Lock/Unlock cursor to the screen depending on visibility
             Cursor.lockState = Cursor.visible ? CursorLockMode.None : CursorLockMode.Locked;
+
+            isCameraFrozen = Cursor.visible; // Freeze camera when cursor is visible
         }
     }
 }
