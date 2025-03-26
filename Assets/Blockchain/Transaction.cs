@@ -8,23 +8,21 @@ public class Transaction : MonoBehaviour
 {
     private Web3 web3;
 
-    public async void ExecuteTransaction(string senderPrivateKey, string receiverPublicKey)
+    public async void ExecuteTransaction(string senderPrivateKey, string receiverPublicKey, decimal amount)
     {
         try
         {
-            Debug.Log("Receiver Public Key: " + receiverPublicKey);
+            Debug.Log($"Attempting to send {amount} ETH to {receiverPublicKey}");
 
-            // Check if the private key is a valid Ethereum private key
             if (senderPrivateKey.Length != 66 || !senderPrivateKey.StartsWith("0x"))
             {
-                Debug.LogError("Invalid sender private key");
+                Debug.LogError("Invalid sender private key.");
                 return;
             }
 
             var chainId = 1337;
             var account = new Account(senderPrivateKey, chainId);
-
-            //Debug.Log("Sender Account Address: " + account.Address);
+            
 
             if (string.IsNullOrEmpty(receiverPublicKey) || receiverPublicKey.Length != 42 || !receiverPublicKey.StartsWith("0x"))
             {
@@ -36,29 +34,28 @@ public class Transaction : MonoBehaviour
             web3.TransactionManager.UseLegacyAsDefault = true;
 
             var balanceBefore = await web3.Eth.GetBalance.SendRequestAsync(account.Address);
-            //Debug.Log("Sender balance before transaction: " + Web3.Convert.FromWei(balanceBefore.Value) + " Ether");
+            Debug.Log($"Sender balance before: {Web3.Convert.FromWei(balanceBefore.Value)} ETH");
 
             string receiverAddress = receiverPublicKey;
 
             var balanceReceiverBefore = await web3.Eth.GetBalance.SendRequestAsync(receiverAddress);
-            //Debug.Log("Receiver balance before transaction: " + Web3.Convert.FromWei(balanceReceiverBefore.Value) + " Ether");
+            Debug.Log($"Receiver balance before: {Web3.Convert.FromWei(balanceReceiverBefore.Value)} ETH");
 
             var transaction = await web3.Eth.GetEtherTransferService()
-                .TransferEtherAndWaitForReceiptAsync(receiverAddress, 1.11m);
+                .TransferEtherAndWaitForReceiptAsync(receiverAddress, amount);
 
-            Debug.Log("Transaction completed. Hash: " + transaction.TransactionHash);
+            Debug.Log($"Transaction completed. Hash: {transaction.TransactionHash}");
 
             var balanceReceiverAfter = await web3.Eth.GetBalance.SendRequestAsync(receiverAddress);
-            //Debug.Log("Receiver balance after transaction: " + Web3.Convert.FromWei(balanceReceiverAfter.Value) + " Ether");
+            Debug.Log($"Receiver balance after: {Web3.Convert.FromWei(balanceReceiverAfter.Value)} ETH");
 
             var balanceSenderAfter = await web3.Eth.GetBalance.SendRequestAsync(account.Address);
-            //Debug.Log("Sender balance after transaction: " + Web3.Convert.FromWei(balanceSenderAfter.Value) + " Ether");
-
+            Debug.Log($"Sender balance after: {Web3.Convert.FromWei(balanceSenderAfter.Value)} ETH");
         }
         catch (Exception ex)
         {
-            Debug.LogError("Transaction failed: " + ex.Message);
-            Debug.LogError("Stack Trace: " + ex.StackTrace);
+            Debug.LogError($"Transaction failed: {ex.Message}");
+            Debug.LogError($"Stack Trace: {ex.StackTrace}");
         }
     }
 }

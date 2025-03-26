@@ -20,6 +20,7 @@ public class KeyInputHandler : NetworkBehaviour
     [SerializeField] private TMP_Text Balance;
     [SerializeField] private TMP_InputField publicKeyInputField;
     [SerializeField] private TMP_InputField privateKeyInputField;
+    [SerializeField] private TMP_InputField amountInputField;
     [SerializeField] private Button sendButton;
     [SerializeField] private Button updateButton;
 
@@ -109,12 +110,20 @@ public class KeyInputHandler : NetworkBehaviour
             if (otherPlayerHandler != null)
             {
                 string senderPrivateKey = privateKeyInputField.text;
-                string otherPlayerPublicKey = otherPlayerHandler.publicKey.Value.ToString();
+                string recipientPublicKey = otherPlayerHandler.publicKey.Value.ToString();
+                string amountText = amountInputField.text;
 
-                if (!string.IsNullOrEmpty(senderPrivateKey) && !string.IsNullOrEmpty(otherPlayerPublicKey))
+                if (!string.IsNullOrEmpty(senderPrivateKey) && !string.IsNullOrEmpty(recipientPublicKey) && !string.IsNullOrEmpty(amountText))
                 {
-                    transactionScript.ExecuteTransaction(senderPrivateKey, otherPlayerPublicKey);
-                    UpdateWalletAddressAndBalance(); // Refresh after sending
+                    if (decimal.TryParse(amountText, out decimal amount) && amount > 0)
+                    {
+                        transactionScript.ExecuteTransaction(senderPrivateKey, recipientPublicKey, amount);
+                        UpdateWalletAddressAndBalance();
+                    }
+                    else
+                    {
+                        Debug.LogError("Invalid amount entered!");
+                    }
                 }
             }
         }
