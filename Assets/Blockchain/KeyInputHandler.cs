@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 
 public class KeyInputHandler : NetworkBehaviour
 {
-    // NetworkVariable to sync the public key for this specific instance
     private NetworkVariable<NetString> publicKey = new NetworkVariable<NetString>(
         new NetString { Value = "<PublicKey>" },
         NetworkVariableReadPermission.Everyone,
@@ -18,26 +17,22 @@ public class KeyInputHandler : NetworkBehaviour
     [SerializeField] private TMP_Text UserName;
     [SerializeField] private TMP_Text WalletAddress;
     [SerializeField] private TMP_Text Balance;
-    [SerializeField] private TMP_InputField publicKeyInputField;
     [SerializeField] private TMP_InputField privateKeyInputField;
     [SerializeField] private TMP_InputField amountInputField;
     [SerializeField] private Button sendButton;
-    [SerializeField] private Button updateButton;
 
     private GameObject overlappingPlayer;
     private Transaction transactionScript;
     private UserUserContract contractScript;
     private Web3 web3;
-    private float balanceCheckInterval = 5f; // Balance check every 5 seconds
+    private float balanceCheckInterval = 5f;
     private float timeSinceLastCheck = 0f;
 
     void Start()
     {
-        updateButton.onClick.AddListener(OnUpdateButtonClick);
         sendButton.onClick.AddListener(OnSendButtonClick);
         sendButton.interactable = false;
 
-        // Ensure initial UI state
         if (IsClient)
         {
             UpdateUsernameDisplay(publicKey.Value.ToString());
@@ -45,33 +40,27 @@ public class KeyInputHandler : NetworkBehaviour
             Balance.text = "Balance: ";
         }
 
-        // Subscribe to changes in the NetworkVariable
         publicKey.OnValueChanged += OnPublicKeyChanged;
-
-        // Get the Transaction component
+        
         transactionScript = GetComponent<Transaction>();
         if (transactionScript == null)
         {
             Debug.LogError("Transaction component not found on this GameObject!");
         }
 
-        // Get the Contract component
         contractScript = GetComponent<UserUserContract>();
         if (contractScript == null)
         {
             Debug.LogError("Contract component not found on this GameObject!");
         }
 
-        // Listen for private key changes
-        privateKeyInputField.onValueChanged.AddListener(OnPrivateKeyChanged);
-
-        // Initialize Web3
+        // Changed from onValueChanged to onEndEdit
+        privateKeyInputField.onEndEdit.AddListener(OnPrivateKeyEndEdit);
         InitializeWeb3();
     }
 
     void Update()
     {
-        // Periodically check balance if private key is set
         if (IsClient && !string.IsNullOrEmpty(privateKeyInputField.text))
         {
             timeSinceLastCheck += Time.deltaTime;
@@ -89,27 +78,6 @@ public class KeyInputHandler : NetworkBehaviour
         web3.TransactionManager.UseLegacyAsDefault = true;
     }
 
-    private void OnUpdateButtonClick()
-    {
-        string newKey = publicKeyInputField.text;
-        if (string.IsNullOrEmpty(newKey)) return;
-
-        if (IsClient && !IsServer)
-        {
-            SubmitPublicKeyServerRpc(newKey);
-        }
-        else if (IsServer)
-        {
-            publicKey.Value = new NetString { Value = newKey };
-        }
-
-        // Update wallet address on update button click (balance updates via OnPrivateKeyChanged or polling)
-        if (!string.IsNullOrEmpty(privateKeyInputField.text))
-        {
-            UpdateWalletAddressAndBalance();
-        }
-    }
-
     private void OnSendButtonClick()
     {
         if (overlappingPlayer != null && transactionScript != null)
@@ -125,7 +93,6 @@ public class KeyInputHandler : NetworkBehaviour
                 {
                     if (decimal.TryParse(amountText, out decimal amount) && amount > 0)
                     {
-                        //transactionScript.ExecuteTransaction(senderPrivateKey, recipientPublicKey, amount);
                         contractScript.Contract(senderPrivateKey, recipientPublicKey, amount);
                         UpdateWalletAddressAndBalance();
                     }
@@ -138,16 +105,41 @@ public class KeyInputHandler : NetworkBehaviour
         }
     }
 
-    private void OnPrivateKeyChanged(string newPrivateKey)
+    private void OnPrivateKeyEndEdit(string newPrivateKey)
     {
         if (!string.IsNullOrEmpty(newPrivateKey))
         {
-            UpdateWalletAddressAndBalance(); // Update address and balance when private key changes
+            UpdateWalletAddressAndBalance();
+            try
+            {
+                var chainId = 1337;
+                var account = new Account(newPrivateKey, chainId);
+                if (IsClient && !IsServer)
+                {
+                    SubmitPublicKeyServerRpc(account.Address);
+                }
+                else if (IsServer)
+                {
+                    publicKey.Value = new NetString { Value = account.Address };
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"Failed to process private key: {ex.Message}");
+            }
         }
         else
         {
             WalletAddress.text = "Address: ";
             Balance.text = "Balance: ";
+            if (IsServer)
+            {
+                publicKey.Value = new NetString { Value = "<PublicKey>" };
+            }
+            else if (IsClient)
+            {
+                SubmitPublicKeyServerRpc("<PublicKey>");
+            }
         }
     }
 
@@ -163,20 +155,14 @@ public class KeyInputHandler : NetworkBehaviour
 
         try
         {
-            // Derive account from private key
             var chainId = 1337;
             var account = new Account(privateKey, chainId);
             web3 = new Web3(account, "http://localhost:8545");
             web3.TransactionManager.UseLegacyAsDefault = true;
 
-            // Update wallet address
             WalletAddress.text = $"Address: {account.Address}";
-
-            // Get balance
             var balanceWei = await web3.Eth.GetBalance.SendRequestAsync(account.Address);
             decimal balanceEth = Web3.Convert.FromWei(balanceWei.Value);
-
-            // Update balance UI
             Balance.text = $"Balance: {balanceEth.ToString("F4")}";
         }
         catch (System.Exception ex)
@@ -247,7 +233,7 @@ public class KeyInputHandler : NetworkBehaviour
         publicKey.OnValueChanged -= OnPublicKeyChanged;
         if (privateKeyInputField != null)
         {
-            privateKeyInputField.onValueChanged.RemoveListener(OnPrivateKeyChanged);
+            privateKeyInputField.onEndEdit.RemoveListener(OnPrivateKeyEndEdit);
         }
         base.OnDestroy();
     }
