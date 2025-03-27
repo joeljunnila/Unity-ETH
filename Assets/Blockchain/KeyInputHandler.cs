@@ -26,6 +26,7 @@ public class KeyInputHandler : NetworkBehaviour
 
     private GameObject overlappingPlayer;
     private Transaction transactionScript;
+    private UserUserContract contractScript;
     private Web3 web3;
     private float balanceCheckInterval = 5f; // Balance check every 5 seconds
     private float timeSinceLastCheck = 0f;
@@ -52,6 +53,13 @@ public class KeyInputHandler : NetworkBehaviour
         if (transactionScript == null)
         {
             Debug.LogError("Transaction component not found on this GameObject!");
+        }
+
+        // Get the Contract component
+        contractScript = GetComponent<UserUserContract>();
+        if (contractScript == null)
+        {
+            Debug.LogError("Contract component not found on this GameObject!");
         }
 
         // Listen for private key changes
@@ -117,7 +125,8 @@ public class KeyInputHandler : NetworkBehaviour
                 {
                     if (decimal.TryParse(amountText, out decimal amount) && amount > 0)
                     {
-                        transactionScript.ExecuteTransaction(senderPrivateKey, recipientPublicKey, amount);
+                        //transactionScript.ExecuteTransaction(senderPrivateKey, recipientPublicKey, amount);
+                        contractScript.Contract(senderPrivateKey, recipientPublicKey, amount);
                         UpdateWalletAddressAndBalance();
                     }
                     else
