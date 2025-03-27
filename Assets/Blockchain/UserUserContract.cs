@@ -10,24 +10,23 @@ public class UserUserContract : MonoBehaviour
 {
     private string rpcUrl = "http://localhost:8545";
     private string contractAddress = ""; // Contract address
-    private BigInteger amountToSend = 1000000000000000000;
     private string abi;
 
 
     async void Start()
     {
-        GetABI();
+        await GetABIAsync();
     }
 
-    void GetABI()
+    async Task GetABIAsync()
     {
-        string path = Path.Combine(Application.dataPath, "Blockchain/ABI/UserUserContract.json"); // Path to the contract ABI file
+            string path = Path.Combine(Application.dataPath, "Blockchain/ABI/UserUserContract.json");
 
-        if (File.Exists(path))
+            if (File.Exists(path))
         {
-            abi = File.ReadAllText(path);
+            abi = await Task.Run(() => File.ReadAllText(path));
         }
-        else
+            else
         {
             Debug.LogError("Failed to load JSON file: " + path);
         }
@@ -42,14 +41,17 @@ public class UserUserContract : MonoBehaviour
             var web3 = new Web3(account, rpcUrl);
             var contract = web3.Eth.GetContract(abi, contractAddress);
 
+            // Convert amount to Wei
+            var amountInWei = Web3.Convert.ToWei(amount, Nethereum.Util.UnitConversion.EthUnit.Ether);
+
             // Call the sendEther function on the contract
             var txHash = await contract.GetFunction("sendEther").SendTransactionAsync(
-                from: account.Address,          // Sender (account with private key)
-                gas: new HexBigInteger(300000), // Gas limit
-                gasPrice: new HexBigInteger(0), // Gas price (0 for Quorum testnet)
-                value: null,                    // No Ether sent with the call
-                recipientAddress,               // Destination address
-                amountToSend                    // Amount to send from contract (1 Ether)
+                from: account.Address,         
+                gas: new HexBigInteger(500000),
+                gasPrice: new HexBigInteger(0),
+                value: new HexBigInteger(amountInWei),
+                recipientAddress,
+                amountInWei      
             );
 
             Debug.Log($"Transaction sent! Hash: {txHash}");

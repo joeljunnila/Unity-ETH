@@ -75,3 +75,4 @@ crashlytics-build.properties
 
 # Ignore all files in the ABI directory
 Assets/Blockchain/ABI/*.json
+Assets/Blockchain/ABI/*.json.meta
