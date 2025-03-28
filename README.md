@@ -1,8 +1,8 @@
-Unity-ETH: Ethereum-Integrated Multiplayer Project
+# Unity-ETH: Ethereum-Integrated Multiplayer Project
 
 Unity-ETH is a Unity project that combines multiplayer gaming capabilities using Unity's Netcode for GameObjects with Ethereum blockchain integration. This project enables players to interact within a multiplayer environment while facilitating Ethereum transactions directly from the Unity application.
 
-Features:
+### Features:
 
 - Multiplayer Support: Utilizes Unity's Netcode for GameObjects to provide a seamless multiplayer experience.
 
@@ -10,7 +10,7 @@ Features:
 
 - User-to-User Transactions: Enables direct Ethereum transactions between players.
 
-Getting Started
+### Getting Started
 
 Prerequisites:
 
@@ -56,7 +56,7 @@ Via OpenUPM:
 
 - Manual Installation: Download the latest Nethereum Unity package from the official repository. Import the package into your Unity project.
 
-Configuration:
+### Configuration:
 
 Ethereum Wallet Connection:
 
@@ -66,7 +66,7 @@ Network Manager Setup:
 
 - A NetworkManager component is configured to manage multiplayer sessions. Review and adjust its settings to match your project's requirements.
 
-Usage:
+### Usage:
 
 Starting a Multiplayer Session:
 
@@ -84,7 +84,7 @@ Project Structure
 
 - Assets/Prefabs: Includes pre-configured GameObjects for players and UI elements.
 
-Recent Updates:
+### Recent Updates:
 
 March 27, 2025: Removed obsolete UI elements and fixed user-to-user smart contract scripts.
 
@@ -92,11 +92,11 @@ March 26, 2025: Fixed lighting issues and added functionality to specify amounts
 
 March 21, 2025: Added a button for sending transactions and implemented various bug fixes.
 
-Contributing
+### Contributing
 
 Contributions are welcome! Please fork the repository and submit a pull request with your enhancements or bug fixes.
 
-License
+### License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
 
