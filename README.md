@@ -14,7 +14,7 @@ Unity-ETH is a Unity project that combines multiplayer gaming capabilities using
 
 Prerequisites:
 
-- Unity 2022.3.0f1 or later: Ensure you have the appropriate Unity version installed.
+- Unity 6000.0.41f1 or later: Ensure you have the appropriate Unity version installed.
 
 - .NET 6 SDK: Required for Ethereum integration functionalities.
 
@@ -53,6 +53,8 @@ Via OpenUPM:
 - Click the + button and select Add package by name....
 
 - Enter com.nethereum.unity and click Add.
+
+- Enter com.nethereum.multiplayer.playmode and Click Add.
 
 - Manual Installation: Download the latest Nethereum Unity package from the official repository. Import the package into your Unity project.
 
