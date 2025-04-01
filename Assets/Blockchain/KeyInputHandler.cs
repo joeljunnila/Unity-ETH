@@ -5,6 +5,7 @@ using Unity.Netcode;
 using Nethereum.Web3;
 using Nethereum.Web3.Accounts;
 using System.Threading.Tasks;
+using System;
 
 public class KeyInputHandler : NetworkBehaviour
 {
@@ -20,6 +21,7 @@ public class KeyInputHandler : NetworkBehaviour
     [SerializeField] private TMP_InputField privateKeyInputField;
     [SerializeField] private TMP_InputField amountInputField;
     [SerializeField] private Button sendButton;
+    [SerializeField] private Button signButton;
 
     private GameObject overlappingPlayer;
     private Transaction transactionScript;
@@ -32,6 +34,8 @@ public class KeyInputHandler : NetworkBehaviour
     {
         sendButton.onClick.AddListener(OnSendButtonClick);
         sendButton.interactable = false;
+
+        signButton.onClick.AddListener(OnSignButtonClick);
 
         if (IsClient)
         {
@@ -54,7 +58,6 @@ public class KeyInputHandler : NetworkBehaviour
             Debug.LogError("Contract component not found on this GameObject!");
         }
 
-        // Changed from onValueChanged to onEndEdit
         privateKeyInputField.onEndEdit.AddListener(OnPrivateKeyEndEdit);
         InitializeWeb3();
     }
@@ -78,9 +81,9 @@ public class KeyInputHandler : NetworkBehaviour
         web3.TransactionManager.UseLegacyAsDefault = true;
     }
 
-    private void OnSendButtonClick()
+    private async void OnSendButtonClick()
     {
-        if (overlappingPlayer != null && transactionScript != null)
+        if (overlappingPlayer != null && contractScript != null)
         {
             KeyInputHandler otherPlayerHandler = overlappingPlayer.GetComponent<KeyInputHandler>();
             if (otherPlayerHandler != null)
@@ -89,12 +92,18 @@ public class KeyInputHandler : NetworkBehaviour
                 string recipientPublicKey = otherPlayerHandler.publicKey.Value.ToString();
                 string amountText = amountInputField.text;
 
-                if (!string.IsNullOrEmpty(senderPrivateKey) && !string.IsNullOrEmpty(recipientPublicKey) && !string.IsNullOrEmpty(amountText))
+                if (!string.IsNullOrEmpty(senderPrivateKey) && 
+                    !string.IsNullOrEmpty(recipientPublicKey) && 
+                    !string.IsNullOrEmpty(amountText))
                 {
                     if (decimal.TryParse(amountText, out decimal amount) && amount > 0)
                     {
-                        contractScript.Contract(senderPrivateKey, recipientPublicKey, amount);
-                        UpdateWalletAddressAndBalance();
+                        string txHash = await contractScript.InitiateTransfer(senderPrivateKey, recipientPublicKey, amount);
+                        if (txHash != null)
+                        {
+                            Debug.Log($"Transfer initiated with hash: {txHash}. Recipient can now claim.");
+                            UpdateWalletAddressAndBalance();
+                        }
                     }
                     else
                     {
@@ -105,40 +114,45 @@ public class KeyInputHandler : NetworkBehaviour
         }
     }
 
+    private async void OnSignButtonClick()
+    {
+        string recipientPrivateKey = privateKeyInputField.text;
+        if (!string.IsNullOrEmpty(recipientPrivateKey))
+        {
+            string txHash = await contractScript.SignTransfer(recipientPrivateKey);
+            if (txHash != null)
+            {
+                UpdateWalletAddressAndBalance();
+            }
+        }
+    }
+
     private void OnPrivateKeyEndEdit(string newPrivateKey)
     {
         if (!string.IsNullOrEmpty(newPrivateKey))
         {
-            UpdateWalletAddressAndBalance();
             try
             {
                 var chainId = 1337;
                 var account = new Account(newPrivateKey, chainId);
                 if (IsClient && !IsServer)
                 {
-                    SubmitPublicKeyServerRpc(account.Address);
+                    if (publicKey.Value.Value != account.Address)
+                    {
+                        SubmitPublicKeyServerRpc(account.Address);
+                    }
                 }
                 else if (IsServer)
                 {
-                    publicKey.Value = new NetString { Value = account.Address };
+                    if (publicKey.Value.Value != account.Address)
+                    {
+                        publicKey.Value = new NetString { Value = account.Address };
+                    }
                 }
             }
             catch (System.Exception ex)
             {
                 Debug.LogError($"Failed to process private key: {ex.Message}");
-            }
-        }
-        else
-        {
-            WalletAddress.text = "Address: ";
-            Balance.text = "Balance: ";
-            if (IsServer)
-            {
-                publicKey.Value = new NetString { Value = "<PublicKey>" };
-            }
-            else if (IsClient)
-            {
-                SubmitPublicKeyServerRpc("<PublicKey>");
             }
         }
     }
