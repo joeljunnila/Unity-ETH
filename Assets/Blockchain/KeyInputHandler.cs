@@ -82,7 +82,7 @@ public class KeyInputHandler : NetworkBehaviour
         string playerAddress = publicKey.Value.Value; // Get dynamically stored public key
         if (!string.IsNullOrEmpty(playerAddress) && blockchainDoor != null)
         {
-            blockchainDoor.RequestDoorOpen(playerAddress);
+            blockchainDoor.RequestDoorOpenServerRpc(playerAddress);
         }
         else
         {

@@ -11,7 +11,7 @@ using Nethereum.ABI.FunctionEncoding.Attributes;
 public class UserUserContract : MonoBehaviour
 {
     private string rpcUrl = "http://localhost:8545";
-    private string contractAddress = "";
+    private string contractAddress = "0x7651dDBf08043a3af8b4603F8EBB90733247BFa9";
     private string abi;
     private Web3 web3;
     private Contract contract;
