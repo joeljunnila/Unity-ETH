@@ -5,7 +5,6 @@ using Unity.Netcode;
 using Nethereum.Web3;
 using Nethereum.Web3.Accounts;
 using System.Threading.Tasks;
-using System;
 
 public class KeyInputHandler : NetworkBehaviour
 {
@@ -18,13 +17,14 @@ public class KeyInputHandler : NetworkBehaviour
     [SerializeField] private TMP_Text UserName;
     [SerializeField] private TMP_Text WalletAddress;
     [SerializeField] private TMP_Text Balance;
+    [SerializeField] private TMP_Text ReceivedMessage;
     [SerializeField] private TMP_InputField privateKeyInputField;
     [SerializeField] private TMP_InputField amountInputField;
+    [SerializeField] private TMP_InputField messageInputField;
     [SerializeField] private Button sendButton;
     [SerializeField] private Button signButton;
 
     private GameObject overlappingPlayer;
-    private Transaction transactionScript;
     private UserUserContract contractScript;
     private Web3 web3;
     private float balanceCheckInterval = 5f;
@@ -34,7 +34,6 @@ public class KeyInputHandler : NetworkBehaviour
     {
         sendButton.onClick.AddListener(OnSendButtonClick);
         sendButton.interactable = false;
-
         signButton.onClick.AddListener(OnSignButtonClick);
 
         if (IsClient)
@@ -42,36 +41,31 @@ public class KeyInputHandler : NetworkBehaviour
             UpdateUsernameDisplay(publicKey.Value.ToString());
             WalletAddress.text = "Address: ";
             Balance.text = "Balance: ";
+            ReceivedMessage.text = "";
         }
 
         publicKey.OnValueChanged += OnPublicKeyChanged;
-        
-        transactionScript = GetComponent<Transaction>();
-        if (transactionScript == null)
-        {
-            Debug.LogError("Transaction component not found on this GameObject!");
-        }
 
         contractScript = GetComponent<UserUserContract>();
         if (contractScript == null)
         {
-            Debug.LogError("Contract component not found on this GameObject!");
+            Debug.LogError("Contract component not found!");
+        }
+        else
+        {
+            contractScript.OnTransferSigned += HandleTransferSigned;
         }
 
         privateKeyInputField.onEndEdit.AddListener(OnPrivateKeyEndEdit);
         InitializeWeb3();
     }
 
-    void Update()
+    private void HandleTransferSigned(string receiver, decimal amount, string message)
     {
-        if (IsClient && !string.IsNullOrEmpty(privateKeyInputField.text))
+        if (receiver.ToLower() == publicKey.Value.ToString().ToLower())
         {
-            timeSinceLastCheck += Time.deltaTime;
-            if (timeSinceLastCheck >= balanceCheckInterval)
-            {
-                UpdateWalletAddressAndBalance();
-                timeSinceLastCheck = 0f;
-            }
+            Debug.Log($"Contract signed by {receiver} for {amount} ETH with message: {message}");
+            ReceivedMessage.text = $"Received: {amount}, Message: {message}";
         }
     }
 
@@ -91,6 +85,7 @@ public class KeyInputHandler : NetworkBehaviour
                 string senderPrivateKey = privateKeyInputField.text;
                 string recipientPublicKey = otherPlayerHandler.publicKey.Value.ToString();
                 string amountText = amountInputField.text;
+                string message = messageInputField.text;
 
                 if (!string.IsNullOrEmpty(senderPrivateKey) && 
                     !string.IsNullOrEmpty(recipientPublicKey) && 
@@ -98,10 +93,9 @@ public class KeyInputHandler : NetworkBehaviour
                 {
                     if (decimal.TryParse(amountText, out decimal amount) && amount > 0)
                     {
-                        string txHash = await contractScript.InitiateTransfer(senderPrivateKey, recipientPublicKey, amount);
+                        string txHash = await contractScript.InitiateTransfer(senderPrivateKey, recipientPublicKey, amount, message);
                         if (txHash != null)
                         {
-                            Debug.Log($"Transfer initiated with hash: {txHash}. Recipient can now claim.");
                             UpdateWalletAddressAndBalance();
                         }
                     }
@@ -249,6 +243,23 @@ public class KeyInputHandler : NetworkBehaviour
         {
             privateKeyInputField.onEndEdit.RemoveListener(OnPrivateKeyEndEdit);
         }
+        if (contractScript != null)
+        {
+            contractScript.OnTransferSigned -= HandleTransferSigned;
+        }
         base.OnDestroy();
+    }
+
+    void Update()
+    {
+        if (IsClient && !string.IsNullOrEmpty(privateKeyInputField.text))
+        {
+            timeSinceLastCheck += Time.deltaTime;
+            if (timeSinceLastCheck >= balanceCheckInterval)
+            {
+                UpdateWalletAddressAndBalance();
+                timeSinceLastCheck = 0f;
+            }
+        }
     }
 }

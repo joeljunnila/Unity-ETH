@@ -1319,7 +1319,7 @@ Transform:
   m_GameObject: {fileID: 1306903420}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 11.36, y: 1.19, z: -2.37}
+  m_LocalPosition: {x: 7.43, y: 1.19, z: -6.18}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1334,12 +1334,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1306903420}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 77f23a58457b6a340a63830fee7a9f03, type: 3}
+  m_Script: {fileID: 11500000, guid: 2fde625435d427044899f50e24229555, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rpcUrl: http://localhost:8545
-  contractAddress: 0x899CE22c2142f60ecA9574c3781A076136D46373
-  abi: 
 --- !u!1 &1362845008
 GameObject:
   m_ObjectHideFlags: 0
