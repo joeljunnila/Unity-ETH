@@ -24,6 +24,8 @@ public class KeyInputHandler : NetworkBehaviour
     [SerializeField] private Button sendButton;
     [SerializeField] private Button signButton;
 
+    private BlockchainDoor blockchainDoor;
+
     private GameObject overlappingPlayer;
     private UserUserContract contractScript;
     private Web3 web3;
@@ -45,7 +47,7 @@ public class KeyInputHandler : NetworkBehaviour
         }
 
         publicKey.OnValueChanged += OnPublicKeyChanged;
-
+        blockchainDoor = FindObjectOfType<BlockchainDoor>();
         contractScript = GetComponent<UserUserContract>();
         if (contractScript == null)
         {
@@ -73,6 +75,19 @@ public class KeyInputHandler : NetworkBehaviour
     {
         web3 = new Web3("http://localhost:8545");
         web3.TransactionManager.UseLegacyAsDefault = true;
+    }
+
+    private void RequestDoorAccess()
+    {
+        string playerAddress = publicKey.Value.Value; // Get dynamically stored public key
+        if (!string.IsNullOrEmpty(playerAddress) && blockchainDoor != null)
+        {
+            blockchainDoor.RequestDoorOpen(playerAddress);
+        }
+        else
+        {
+            Debug.LogError("BlockchainDoor not found or player address is not set.");
+        }
     }
 
     private async void OnSendButtonClick()
@@ -260,6 +275,13 @@ public class KeyInputHandler : NetworkBehaviour
                 UpdateWalletAddressAndBalance();
                 timeSinceLastCheck = 0f;
             }
+
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+            RequestDoorAccess();
+            }
         }
+
+        
     }
 }
