@@ -46,13 +46,6 @@ public class BlockchainDoor : NetworkBehaviour
         isOpen.OnValueChanged += (oldValue, newValue) => StartDoorAnimation(newValue);
     }
 
-    public void updateOwnerPrivateKey(string privateKey)
-    {
-        ownerPrivateKey = privateKey;
-        Debug.Log("Owner private key updated: " + ownerPrivateKey);
-        var account = new Account(ownerPrivateKey);
-        web3 = new Web3(account, rpcUrl);
-    }
 
     void GetABI()
     {
