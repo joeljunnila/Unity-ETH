@@ -14,18 +14,12 @@ public class KeyInputHandler : NetworkBehaviour
         NetworkVariableWritePermission.Server
     );
 
-    [SerializeField] private TMP_Text UserName;
-    [SerializeField] private TMP_Text WalletAddress;
-    [SerializeField] private TMP_Text Balance;
-    [SerializeField] private TMP_Text ReceivedMessage;
-    [SerializeField] private TMP_InputField privateKeyInputField;
-    [SerializeField] private TMP_InputField amountInputField;
-    [SerializeField] private TMP_InputField messageInputField;
-    [SerializeField] private Button sendButton;
-    [SerializeField] private Button signButton;
-
+    [SerializeField] private TMP_Text UserName, WalletAddress, Balance, ReceivedMessage;
+    [SerializeField] private TMP_InputField privateKeyInputField, amountInputField, messageInputField, doorAccessInputField;
+    [SerializeField] private Button sendButton, signButton, grantAccess, revokeAccess, listAccess;
+    [SerializeField] private GameObject adminCanvas;
     private BlockchainDoor blockchainDoor;
-
+    
     private GameObject overlappingPlayer;
     private UserUserContract contractScript;
     private Web3 web3;
@@ -37,6 +31,22 @@ public class KeyInputHandler : NetworkBehaviour
         sendButton.onClick.AddListener(OnSendButtonClick);
         sendButton.interactable = false;
         signButton.onClick.AddListener(OnSignButtonClick);
+        
+        adminCanvas.SetActive(!adminCanvas.activeSelf);
+        grantAccess.onClick.AddListener(OnGrantAccessButtonClick);
+        grantAccess.interactable = false;
+        revokeAccess.onClick.AddListener(OnRevokeAccessButtonClick);
+        revokeAccess.interactable = false;
+        listAccess.onClick.AddListener(OnListAccessButtonClick);
+        
+        doorAccessInputField.onEndEdit.AddListener((string key) =>
+        {
+            if (key.Length == 42 && key.StartsWith("0x"))
+            {
+                grantAccess.interactable = true;
+                revokeAccess.interactable = true;
+            }
+        });
 
         if (IsClient)
         {
@@ -60,6 +70,43 @@ public class KeyInputHandler : NetworkBehaviour
 
         privateKeyInputField.onEndEdit.AddListener(OnPrivateKeyEndEdit);
         InitializeWeb3();
+    }
+
+    private void OnGrantAccessButtonClick(){
+        blockchainDoor.GrantAccess(doorAccessInputField.text, privateKeyInputField.text);
+    }
+
+    private void OnRevokeAccessButtonClick(){
+        blockchainDoor.RevokeAccess(doorAccessInputField.text, privateKeyInputField.text);
+    }
+    private void OnListAccessButtonClick()
+    {
+        if (IsClient)
+        {
+            string privateKey = privateKeyInputField.text;
+
+            try
+            {
+                // Derive the public key from the private key
+                var chainId = 1337;
+                var account = new Account(privateKey, chainId);
+                string derivedPublicKey = account.Address.ToLower();
+
+                if (derivedPublicKey == publicKey.Value.ToString().ToLower())
+                    {
+                    // Call the method to get the access list
+                    blockchainDoor.GetAccessList(derivedPublicKey);
+                }
+                else
+                {
+                    Debug.LogWarning("Unauthorized access attempt.");
+                    }
+                }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"Failed to derive public key from private key: {ex.Message}");
+            }
+        }
     }
 
     private void HandleTransferSigned(string receiver, decimal amount, string message)
@@ -282,6 +329,9 @@ public class KeyInputHandler : NetworkBehaviour
             }
         }
 
-        
+        if (Input.GetKeyDown(KeyCode.Q))
+        {
+            adminCanvas.SetActive(!adminCanvas.activeSelf);                       
+        }     
     }
 }
