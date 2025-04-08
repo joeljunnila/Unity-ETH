@@ -17,7 +17,7 @@ using Nethereum.ABI.FunctionEncoding.Attributes;
 public class BlockchainDoor : NetworkBehaviour
 {
     private string rpcUrl = "http://127.0.0.1:8545";
-    private string contractAddress = "";
+    private string contractAddress = "0x5A6a81674E59538036306fc9E1830D6E8Ac8A420";
     private string ownerPrivateKey;
     private Web3 web3;
     private string abi;
