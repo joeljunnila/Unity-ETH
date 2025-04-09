@@ -1,6 +1,5 @@
 using UnityEngine;
 using System;
-using System.Numerics;
 using Nethereum.Web3;
 using Nethereum.Contracts;
 using System.Threading.Tasks;
@@ -12,13 +11,11 @@ using System.Collections.Generic;
 using Nethereum.RPC.Eth.DTOs;
 using Nethereum.Web3.Accounts;
 using Nethereum.ABI.FunctionEncoding.Attributes;
-using Nethereum.ABI.FunctionEncoding.Attributes;
 
 public class BlockchainDoor : NetworkBehaviour
 {
-    private string rpcUrl = "http://127.0.0.1:8545";
-    private string contractAddress = "0x5A6a81674E59538036306fc9E1830D6E8Ac8A420";
-    private string ownerPrivateKey;
+    private string rpcUrl;
+    private string contractAddress;
     private Web3 web3;
     private string abi;
 
@@ -36,9 +33,19 @@ public class BlockchainDoor : NetworkBehaviour
 
     void Start()
     {
+        if (ConfigLoader.config == null || ConfigLoader.config.ethereum == null)
+        {
+            Debug.LogError("Ethereum config is not loaded. Check if ConfigLoader has run.");
+            return;
+        }
+
+        rpcUrl = ConfigLoader.config.ethereum.rpcUrl;
+        contractAddress = ConfigLoader.config.ethereum.contractUserDevice;
+
         GetABI();
         web3 = new Web3(rpcUrl);
 
+        // Setting up smooth rotation for the door opening
         closedRotation = transform.rotation;
         openRotation = UnityEngine.Quaternion.Euler(transform.eulerAngles + new UnityEngine.Vector3(0, openAngle, 0));
 
@@ -61,7 +68,7 @@ public class BlockchainDoor : NetworkBehaviour
         }
     }
 
-    public async Task<bool> CheckAccess(string playerAddress)
+    public async Task<bool> CheckAccess(string playerAddress) // Checks from chain if the playerAddress has access to "canOpenDoor"
     {
         if (string.IsNullOrEmpty(playerAddress))
         {
@@ -75,12 +82,12 @@ public class BlockchainDoor : NetworkBehaviour
         return hasAccess;
     }
 
-    public bool IsPlayerNearby()
+    public bool IsPlayerNearby() // Collider for the door to check if the "Player" is nearby
     {
         Collider[] colliders = Physics.OverlapSphere(transform.position, interactionRange);
         foreach (Collider col in colliders)
         {
-            if (col.CompareTag("Player")) // Ensure player objects have the "Player" tag
+            if (col.CompareTag("Player"))
             {
                 return true;
             }
@@ -92,18 +99,18 @@ public class BlockchainDoor : NetworkBehaviour
     public void RequestDoorOpenServerRpc(string playerAddress)
     {
         if (!IsPlayerNearby()) return; // Prevent toggling if no player is close
-        StartCoroutine(CheckAccessAndToggleDoor(playerAddress)); // Call separate async method
+        StartCoroutine(CheckAccessAndToggleDoor(playerAddress)); // Call separate async method to toggle the door
     }
 
-    private IEnumerator CheckAccessAndToggleDoor(string playerAddress)
+    private IEnumerator CheckAccessAndToggleDoor(string playerAddress) // Checks the access and toggles the door if it's granted
     {
         var task = CheckAccess(playerAddress);
         yield return new WaitUntil(() => task.IsCompleted);
 
-        if (task.Result) // If access is granted
+        if (task.Result) 
         {
             Debug.Log("Access granted! Toggling door state...");
-            isOpen.Value = !isOpen.Value;  // ✅ Update the NetworkVariable
+            isOpen.Value = !isOpen.Value;  // Updates the door state
         }
         else
         {
@@ -111,7 +118,7 @@ public class BlockchainDoor : NetworkBehaviour
         }
 }
 
-    public void StartDoorAnimation(bool open)
+    public void StartDoorAnimation(bool open) // Starts door animation
     {
         if (doorAnimationCoroutine != null)
         {
@@ -120,7 +127,7 @@ public class BlockchainDoor : NetworkBehaviour
         doorAnimationCoroutine = StartCoroutine(AnimateDoor(open));
     }
 
-    public IEnumerator AnimateDoor(bool open)
+    public IEnumerator AnimateDoor(bool open) // Door Animation function
     {
         UnityEngine.Quaternion targetRotation = open ? openRotation : closedRotation;
         while (UnityEngine.Quaternion.Angle(transform.rotation, targetRotation) > 0.1f)
@@ -128,10 +135,10 @@ public class BlockchainDoor : NetworkBehaviour
             transform.rotation = UnityEngine.Quaternion.Lerp(transform.rotation, targetRotation, Time.deltaTime * openSpeed);
             yield return null;
         }
-        transform.rotation = targetRotation; // Ensure exact final rotation
+        transform.rotation = targetRotation;
     }
 
-    public async Task GrantAccess(string userAddress, string privateKey)
+    public async Task GrantAccess(string userAddress, string privateKey) // Grants Access via transaction in smart contract
     {
         if (string.IsNullOrEmpty(userAddress) || userAddress.Length != 42 || !userAddress.StartsWith("0x"))
         {
@@ -177,7 +184,7 @@ public class BlockchainDoor : NetworkBehaviour
         }
     }
 
-    public async Task RevokeAccess(string userAddress, string privateKey)
+    public async Task RevokeAccess(string userAddress, string privateKey) // Revokes access via transaction in smart contract
     {
         if (string.IsNullOrEmpty(userAddress) || userAddress.Length != 42 || !userAddress.StartsWith("0x"))
         {
@@ -223,7 +230,7 @@ public class BlockchainDoor : NetworkBehaviour
         }
     }
 
-    public async Task<List<string>> GetAccessList(string ownerAddress)
+    public async Task<List<string>> GetAccessList(string ownerAddress) // Get accesslist from the smart contract
     {
         try
         {

@@ -88,7 +88,7 @@ public class KeyInputHandler : NetworkBehaviour
             try
             {
                 // Derive the public key from the private key
-                var chainId = 1337;
+                var chainId = ConfigLoader.config.network.chainId;
                 var account = new Account(privateKey, chainId);
                 string derivedPublicKey = account.Address.ToLower();
 
@@ -189,7 +189,7 @@ public class KeyInputHandler : NetworkBehaviour
         {
             try
             {
-                var chainId = 1337;
+                var chainId = ConfigLoader.config.network.chainId;
                 var account = new Account(newPrivateKey, chainId);
                 if (IsClient && !IsServer)
                 {
@@ -225,7 +225,7 @@ public class KeyInputHandler : NetworkBehaviour
 
         try
         {
-            var chainId = 1337;
+            var chainId = ConfigLoader.config.network.chainId;
             var account = new Account(privateKey, chainId);
             web3 = new Web3(account, "http://localhost:8545");
             web3.TransactionManager.UseLegacyAsDefault = true;

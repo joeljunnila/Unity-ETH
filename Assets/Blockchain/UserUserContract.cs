@@ -10,8 +10,8 @@ using Nethereum.ABI.FunctionEncoding.Attributes;
 
 public class UserUserContract : MonoBehaviour
 {
-    private string rpcUrl = "http://localhost:8545";
-    private string contractAddress = "";
+    private string rpcUrl;
+    private string contractAddress;
     private string abi;
     private Web3 web3;
     private Contract contract;
@@ -34,6 +34,15 @@ public class UserUserContract : MonoBehaviour
 
     async void Start()
     {
+        if (ConfigLoader.config == null || ConfigLoader.config.ethereum == null)
+        {
+            Debug.LogError("Ethereum config is not loaded. Check if ConfigLoader has run.");
+            return;
+        }
+
+        rpcUrl = ConfigLoader.config.ethereum.rpcUrl;
+        contractAddress = ConfigLoader.config.ethereum.contractUserUser;
+
         await GetABIAsync();
         InitializeWeb3AndContract();
         await SubscribeToTransferSignedEvent();
@@ -52,13 +61,13 @@ public class UserUserContract : MonoBehaviour
         }
     }
 
-    private void InitializeWeb3AndContract()
+    private void InitializeWeb3AndContract() // Initializing the connection and contract
     {
         web3 = new Web3(rpcUrl);
         contract = web3.Eth.GetContract(abi, contractAddress);
     }
 
-    public async Task<string> InitiateTransfer(string senderPrivateKey, string recipientAddress, decimal amount, string message)
+    public async Task<string> InitiateTransfer(string senderPrivateKey, string recipientAddress, decimal amount, string message) // Initializing the transaction details 
     {
         try
         {
@@ -85,7 +94,7 @@ public class UserUserContract : MonoBehaviour
         }
     }
 
-    public async Task<string> SignTransfer(string recipientPrivateKey)
+    public async Task<string> SignTransfer(string recipientPrivateKey) // Function to sign the transaction
     {
         try
         {
@@ -110,7 +119,7 @@ public class UserUserContract : MonoBehaviour
         }
     }
 
-    private async Task SubscribeToTransferSignedEvent()
+    private async Task SubscribeToTransferSignedEvent() // Transfer the signed event
     {
         if (contract == null)
         {

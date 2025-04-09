@@ -9,16 +9,26 @@ using Nethereum.Web3.Accounts;
 public class TemperatureSensor : MonoBehaviour
 {
     public TextMeshPro temperatureText;
-    private string rpcUrl = "http://127.0.0.1:8545";
-    private string contractAddress = "0x1E3A517Cabb3a96fA35a4Dc1eB77D220A6117Ad5";
+    private string rpcUrl;
+    private string contractAddress;
     private string abi;
-    private string privateKey = "e417a0645214677eb9820ab5775eab4596538a06ff8c31a8c655c08a44139a37";
+    private string privateKey;
     private Web3 web3;
     private Contract contract;
     private int currentTemperature = 25;
 
     void Start()
     {
+        if (ConfigLoader.config == null || ConfigLoader.config.ethereum == null)
+        {
+            Debug.LogError("Ethereum config is not loaded. Check if ConfigLoader has run.");
+            return;
+        }
+
+        rpcUrl = ConfigLoader.config.ethereum.rpcUrl;
+        contractAddress = ConfigLoader.config.ethereum.contractDeviceDevice;
+        privateKey = ConfigLoader.config.ethereum.tempPrivateKey;
+
         GetABI();
 
         var account = new Account(privateKey);
@@ -30,7 +40,7 @@ public class TemperatureSensor : MonoBehaviour
         {
             temperatureText = GetComponentInChildren<TextMeshPro>();
         }
-
+        // Repeat simulating and uploading the temperature every 10 seconds
         InvokeRepeating(nameof(SimulateAndUploadTemp), 2f, 10f);
     }
 
@@ -48,14 +58,14 @@ public class TemperatureSensor : MonoBehaviour
         }
     }
 
-    void SimulateAndUploadTemp()
+    void SimulateAndUploadTemp() // Simulating temperature as random and uploading it to display and blockchain
     {
         currentTemperature = Random.Range(20, 30);
         UpdateTemperatureDisplay(currentTemperature);
         UploadTemperatureToBlockchain(currentTemperature);
     }
 
-    async void UploadTemperatureToBlockchain(int temp)
+    async void UploadTemperatureToBlockchain(int temp) // Uploading the temperature to blockchain via transaction to smart contract
 {
     try
     {
@@ -74,7 +84,7 @@ public class TemperatureSensor : MonoBehaviour
         }
 
         var gas = new Nethereum.Hex.HexTypes.HexBigInteger(300000);
-        var gasPrice = new Nethereum.Hex.HexTypes.HexBigInteger(0); // 0 for GoQuorum
+        var gasPrice = new Nethereum.Hex.HexTypes.HexBigInteger(0); 
 
         var transactionHash = await updateTempFunction.SendTransactionAsync(
             from: web3.TransactionManager.Account.Address,
@@ -83,8 +93,6 @@ public class TemperatureSensor : MonoBehaviour
             value: null,
             functionInput: temp
         );
-
-        Debug.Log($"Temperature {temp}°C updated. TxHash: {transactionHash}");
     }
     catch (System.Exception e)
     {
@@ -92,7 +100,7 @@ public class TemperatureSensor : MonoBehaviour
     }
 }
 
-    void UpdateTemperatureDisplay(int temperature)
+    void UpdateTemperatureDisplay(int temperature) // Uploading temperature as a text into the display
     {
         if (temperatureText != null)
         {

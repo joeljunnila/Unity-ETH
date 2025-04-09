@@ -8,8 +8,8 @@ using System.IO;
 public class FanController : NetworkBehaviour
 {
     public Transform fanBlade;
-    private string rpcUrl = "http://127.0.0.1:8545";
-    private string contractAddress = "0x1E3A517Cabb3a96fA35a4Dc1eB77D220A6117Ad5";
+    private string rpcUrl;
+    private string contractAddress;
     private string abi;
     private Web3 web3;
     private Contract contract;
@@ -23,6 +23,15 @@ public class FanController : NetworkBehaviour
 
     void Start()
     {
+        if (ConfigLoader.config == null || ConfigLoader.config.ethereum == null)
+        {
+            Debug.LogError("Ethereum config is not loaded. Check if ConfigLoader has run.");
+            return;
+        }
+
+        rpcUrl = ConfigLoader.config.ethereum.rpcUrl;
+        contractAddress = ConfigLoader.config.ethereum.contractDeviceDevice;
+
         GetABI();
 
         if (fanBlade == null)
@@ -37,7 +46,7 @@ public class FanController : NetworkBehaviour
         {
             contract = web3.Eth.GetContract(abi, contractAddress);
         }
-
+        // Repeat request of temperature every 10 seconds
         InvokeRepeating(nameof(RequestTemperatureUpdate), 7f, 10f);
 
         fanSpeed.OnValueChanged += (oldSpeed, newSpeed) => UpdateFanRotation(newSpeed);
@@ -50,7 +59,6 @@ public class FanController : NetworkBehaviour
         if (File.Exists(path))
         {
             abi = File.ReadAllText(path);
-            Debug.Log("Loaded Fan ABI successfully.");
         }
         else
         {
@@ -66,28 +74,25 @@ public class FanController : NetworkBehaviour
     }
 }
 
-    private void UpdateFanRotation(float speed)
+    private void UpdateFanRotation(float speed) // Updating fan rotationSpeed
     {
         currentRotationSpeed = speed;
-        Debug.Log("Fan Speed Updated: " + speed);
     }
 
-    private async void RequestTemperatureUpdate()
+    private async void RequestTemperatureUpdate() // Requesting temperature update
     {
         int temp = await FetchTemperature();
-        Debug.Log($"Fetched Temp from chain: {temp}");
         UpdateFanSpeedServerRpc(temp);
     }
 
     [ServerRpc(RequireOwnership = false)]
-    public void UpdateFanSpeedServerRpc(int temp)
+    public void UpdateFanSpeedServerRpc(int temp) // Maths for the fanSpeed and updating the value on server
     {
         float newSpeed = Mathf.Lerp(100f, 1000f, Mathf.Clamp01((temp - 20f) / 10f));
-        Debug.Log($"Calculated Fan Speed (from temp {temp}): {newSpeed}");
         fanSpeed.Value = newSpeed;
     }
 
-    private async Task<int> FetchTemperature()
+    private async Task<int> FetchTemperature() // Function to fetch temp from the smart contract
     {
         if (contract == null)
         {

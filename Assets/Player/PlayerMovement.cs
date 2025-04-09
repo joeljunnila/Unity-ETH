@@ -7,17 +7,11 @@ public class PlayerMovement : NetworkBehaviour
 {
     [Header("Movement")]
     public float moveSpeed;
-
     public Transform orientation;
     public Camera playerCamera;
-
     float horizontalInput;
     float verticalInput;
-
-
-
     Vector3 moveDirection;
-
     Rigidbody rb;
 
     public override void OnNetworkSpawn()
