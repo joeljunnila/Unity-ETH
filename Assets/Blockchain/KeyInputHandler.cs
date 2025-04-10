@@ -5,6 +5,7 @@ using Unity.Netcode;
 using Nethereum.Web3;
 using Nethereum.Web3.Accounts;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 public class KeyInputHandler : NetworkBehaviour
 {
@@ -15,11 +16,17 @@ public class KeyInputHandler : NetworkBehaviour
     );
 
     [SerializeField] private TMP_Text UserName, WalletAddress, Balance, ReceivedMessage;
-    [SerializeField] private TMP_InputField privateKeyInputField, amountInputField, messageInputField, doorAccessInputField;
-    [SerializeField] private Button sendButton, signButton, grantAccess, revokeAccess, listAccess;
-    [SerializeField] private GameObject adminCanvas;
-    private BlockchainDoor blockchainDoor;
+    [SerializeField] private TMP_InputField privateKeyInputField, amountInputField, messageInputField;
+    [SerializeField] private Button sendButton, signButton;
     
+    [Header("Admin Panel UI")]
+    [SerializeField] private GameObject adminCanvas;
+    [SerializeField] private TMP_Dropdown roleDropdown;
+    [SerializeField] private Toggle physicalAccessToggle, digitalAccessToggle;
+    [SerializeField] private Button grantAccess, revokeAccess, listAccess;
+    [SerializeField] private TMP_InputField doorAccessInputField, expirationHoursField;
+
+    private BlockchainDoor blockchainDoor;  
     private GameObject overlappingPlayer;
     private UserUserContract contractScript;
     private Web3 web3;
@@ -33,11 +40,21 @@ public class KeyInputHandler : NetworkBehaviour
         signButton.onClick.AddListener(OnSignButtonClick);
         
         adminCanvas.SetActive(!adminCanvas.activeSelf);
+        
+        if (roleDropdown != null)
+        {
+            roleDropdown.ClearOptions();
+            roleDropdown.AddOptions(new System.Collections.Generic.List<string> {
+                "Default", "Admin"
+            });
+        }
+        if (physicalAccessToggle != null) physicalAccessToggle.isOn = true;
+        if (digitalAccessToggle != null) digitalAccessToggle.isOn = true;
+
         grantAccess.onClick.AddListener(OnGrantAccessButtonClick);
         grantAccess.interactable = false;
         revokeAccess.onClick.AddListener(OnRevokeAccessButtonClick);
         revokeAccess.interactable = false;
-        listAccess.onClick.AddListener(OnListAccessButtonClick);
         
         doorAccessInputField.onEndEdit.AddListener((string key) =>
         {
@@ -57,7 +74,7 @@ public class KeyInputHandler : NetworkBehaviour
         }
 
         publicKey.OnValueChanged += OnPublicKeyChanged;
-        blockchainDoor = FindObjectOfType<BlockchainDoor>();
+
         contractScript = GetComponent<UserUserContract>();
         if (contractScript == null)
         {
@@ -70,44 +87,106 @@ public class KeyInputHandler : NetworkBehaviour
 
         privateKeyInputField.onEndEdit.AddListener(OnPrivateKeyEndEdit);
         InitializeWeb3();
-    }
 
-    private void OnGrantAccessButtonClick(){
-        blockchainDoor.GrantAccess(doorAccessInputField.text, privateKeyInputField.text);
-    }
-
-    private void OnRevokeAccessButtonClick(){
-        blockchainDoor.RevokeAccess(doorAccessInputField.text, privateKeyInputField.text);
-    }
-    private void OnListAccessButtonClick()
-    {
-        if (IsClient)
+        DoorEventListener doorMonitor = FindObjectOfType<DoorEventListener>();
+        if (doorMonitor != null && !string.IsNullOrEmpty(publicKey.Value.Value))
         {
-            string privateKey = privateKeyInputField.text;
-
-            try
-            {
-                // Derive the public key from the private key
-                var chainId = ConfigLoader.config.network.chainId;
-                var account = new Account(privateKey, chainId);
-                string derivedPublicKey = account.Address.ToLower();
-
-                if (derivedPublicKey == publicKey.Value.ToString().ToLower())
-                    {
-                    // Call the method to get the access list
-                    blockchainDoor.GetAccessList(derivedPublicKey);
-                }
-                else
-                {
-                    Debug.LogWarning("Unauthorized access attempt.");
-                    }
-                }
-            catch (System.Exception ex)
-            {
-                Debug.LogError($"Failed to derive public key from private key: {ex.Message}");
-            }
+            doorMonitor.RegisterPlayerAddress(publicKey.Value.Value);
         }
     }
+
+    // *** DOOR-RELATED METHODS***
+    private async void OnGrantAccessButtonClick()
+    {
+        BlockchainDoor door = FindClosestDoor();
+        if (door != null)
+        {
+            BlockchainDoor.AccessRole selectedRole = BlockchainDoor.AccessRole.Default;
+            if (roleDropdown != null && roleDropdown.value == 1)
+                selectedRole = BlockchainDoor.AccessRole.Admin;
+
+            bool grantPhysical = physicalAccessToggle == null || physicalAccessToggle.isOn;
+            bool grantDigital = digitalAccessToggle == null || digitalAccessToggle.isOn;
+
+            uint expirationHours = 0;
+            if (expirationHoursField != null && !string.IsNullOrEmpty(expirationHoursField.text))
+            {
+                if (uint.TryParse(expirationHoursField.text, out uint hours))
+                    expirationHours = hours;
+            }
+
+            await door.GrantAccess(
+                doorAccessInputField.text, 
+                privateKeyInputField.text,
+                selectedRole,
+                grantPhysical,
+                grantDigital,
+                expirationHours
+            );
+        }
+    }
+
+    private async void OnRevokeAccessButtonClick()
+    {
+        BlockchainDoor door = FindClosestDoor();
+        if (door != null)
+        {
+            await door.RevokeAccess(doorAccessInputField.text, privateKeyInputField.text);
+        }
+    }
+
+    private BlockchainDoor FindClosestDoor()
+    {
+        BlockchainDoor[] allDoors = FindObjectsOfType<BlockchainDoor>();
+        BlockchainDoor closestDoor = null;
+        float closestDistance = float.MaxValue;
+
+        foreach (BlockchainDoor door in allDoors)
+        {
+            float distance = Vector3.Distance(transform.position, door.transform.position);
+            if (distance < closestDistance)
+            {
+                closestDoor = door;
+                closestDistance = distance;
+            }
+        }
+
+        return closestDoor;
+    }
+
+    private void RequestDoorAccess()
+    {
+        string playerAddress = publicKey.Value.Value;
+
+        BlockchainDoor[] allDoors = FindObjectsOfType<BlockchainDoor>();
+        BlockchainDoor closestDoor = null;
+        float closestDistance = float.MaxValue;
+
+        foreach (BlockchainDoor door in allDoors)
+        {
+            float distance = Vector3.Distance(transform.position, door.transform.position);
+            if (distance <= door.interactionRange && distance < closestDistance)
+            {
+                closestDoor = door;
+                closestDistance = distance;
+            }
+        }
+
+        if (closestDoor != null && !string.IsNullOrEmpty(playerAddress))
+        {
+            Debug.Log($"Attempting to access {(closestDoor.isPhysicalDoor ? "Physical" : "Digital")} {closestDoor.doorName}");
+            closestDoor.RequestDoorOpenServerRpc(playerAddress);
+        }
+        else if (closestDoor == null)
+        {
+            Debug.Log("No door within interaction range");
+        }
+        else
+        {
+            Debug.LogError("Player address is not set.");
+        }
+    }
+
 
     private void HandleTransferSigned(string receiver, decimal amount, string message)
     {
@@ -122,19 +201,6 @@ public class KeyInputHandler : NetworkBehaviour
     {
         web3 = new Web3("http://localhost:8545");
         web3.TransactionManager.UseLegacyAsDefault = true;
-    }
-
-    private void RequestDoorAccess()
-    {
-        string playerAddress = publicKey.Value.Value; // Get dynamically stored public key
-        if (!string.IsNullOrEmpty(playerAddress) && blockchainDoor != null)
-        {
-            blockchainDoor.RequestDoorOpenServerRpc(playerAddress);
-        }
-        else
-        {
-            Debug.LogError("BlockchainDoor not found or player address is not set.");
-        }
     }
 
     private async void OnSendButtonClick()
@@ -212,7 +278,12 @@ public class KeyInputHandler : NetworkBehaviour
             }
         }
     }
-
+    
+    public string GetPublicAddress()
+    {
+        return publicKey.Value.ToString();
+    }
+    
     private async void UpdateWalletAddressAndBalance()
     {
         string privateKey = privateKeyInputField.text;
@@ -325,7 +396,7 @@ public class KeyInputHandler : NetworkBehaviour
 
             if (Input.GetKeyDown(KeyCode.E))
             {
-            RequestDoorAccess();
+                RequestDoorAccess();
             }
         }
 

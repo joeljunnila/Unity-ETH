@@ -16,17 +16,31 @@ public class BlockchainDoor : NetworkBehaviour
 {
     private string rpcUrl;
     private string contractAddress;
+    private string ownerPrivateKey;
     private Web3 web3;
     private string abi;
 
     public float openAngle = 90f;
     public float openSpeed = 2f;
     public float interactionRange = 2f;
+    [SerializeField] private DoorSigner doorSigner;
+    [Tooltip("Is this a physical door (true) or digital door (false)?")]
+    public bool isPhysicalDoor = true;
+    
+    [Tooltip("Door identifier for debugging")]
+    public string doorName = "Door";
 
     public Coroutine doorAnimationCoroutine;
 
     public UnityEngine.Quaternion closedRotation;
     public UnityEngine.Quaternion openRotation;
+
+    public enum AccessRole
+    {
+        None = 0,
+        Default = 1,
+        Admin = 2
+    }
 
     public NetworkVariable<bool> isOpen = new NetworkVariable<bool>(false, 
         NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
@@ -45,14 +59,17 @@ public class BlockchainDoor : NetworkBehaviour
         GetABI();
         web3 = new Web3(rpcUrl);
 
-        // Setting up smooth rotation for the door opening
         closedRotation = transform.rotation;
         openRotation = UnityEngine.Quaternion.Euler(transform.eulerAngles + new UnityEngine.Vector3(0, openAngle, 0));
 
-        // Sync door state when it changes
         isOpen.OnValueChanged += (oldValue, newValue) => StartDoorAnimation(newValue);
-    }
 
+        if (doorSigner == null)
+        {
+            doorSigner = GetComponent<DoorSigner>();
+        }
+        Debug.Log($"Initialized {(isPhysicalDoor ? "Physical" : "Digital")} {doorName}");
+    }
 
     void GetABI()
     {
@@ -68,7 +85,7 @@ public class BlockchainDoor : NetworkBehaviour
         }
     }
 
-    public async Task<bool> CheckAccess(string playerAddress) // Checks from chain if the playerAddress has access to "canOpenDoor"
+    public async Task<bool> CheckAccess(string playerAddress)
     {
         if (string.IsNullOrEmpty(playerAddress))
         {
@@ -77,12 +94,16 @@ public class BlockchainDoor : NetworkBehaviour
         }
 
         var contract = web3.Eth.GetContract(abi, contractAddress);
-        var canOpenFunction = contract.GetFunction("canOpenDoor");
-        bool hasAccess = await canOpenFunction.CallAsync<bool>(playerAddress);
+        
+        var checkFunction = isPhysicalDoor ? 
+            contract.GetFunction("canOpenPhysicalDoor") : 
+            contract.GetFunction("canOpenDigitalDoor");
+            
+        bool hasAccess = await checkFunction.CallAsync<bool>(playerAddress);      
         return hasAccess;
     }
 
-    public bool IsPlayerNearby() // Collider for the door to check if the "Player" is nearby
+    public bool IsPlayerNearby()
     {
         Collider[] colliders = Physics.OverlapSphere(transform.position, interactionRange);
         foreach (Collider col in colliders)
@@ -98,27 +119,38 @@ public class BlockchainDoor : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void RequestDoorOpenServerRpc(string playerAddress)
     {
-        if (!IsPlayerNearby()) return; // Prevent toggling if no player is close
-        StartCoroutine(CheckAccessAndToggleDoor(playerAddress)); // Call separate async method to toggle the door
+        if (!IsPlayerNearby()) return;
+        StartCoroutine(CheckAccessAndToggleDoor(playerAddress));
     }
 
-    private IEnumerator CheckAccessAndToggleDoor(string playerAddress) // Checks the access and toggles the door if it's granted
+    private IEnumerator CheckAccessAndToggleDoor(string playerAddress)
     {
         var task = CheckAccess(playerAddress);
         yield return new WaitUntil(() => task.IsCompleted);
 
-        if (task.Result) 
+        if (task.Result)
         {
-            Debug.Log("Access granted! Toggling door state...");
-            isOpen.Value = !isOpen.Value;  // Updates the door state
+            Debug.Log($"Access granted to {(isPhysicalDoor ? "physical" : "digital")} {doorName}! Toggling door state...");
+            isOpen.Value = !isOpen.Value;
+
+            if (doorSigner != null)
+            {
+                Debug.Log($"Attempting to record door access by {playerAddress} to blockchain...");
+                doorSigner.SignDoorTransaction(playerAddress);
+            }
+            else
+            {
+                Debug.LogError($"Cannot record access: doorSigner is null on {doorName}");
+            }
+            
         }
         else
         {
-            Debug.Log("Access Denied!");
+            Debug.Log($"Access Denied to {(isPhysicalDoor ? "physical" : "digital")} {doorName}!");
         }
-}
+    }
 
-    public void StartDoorAnimation(bool open) // Starts door animation
+    public void StartDoorAnimation(bool open)
     {
         if (doorAnimationCoroutine != null)
         {
@@ -127,7 +159,7 @@ public class BlockchainDoor : NetworkBehaviour
         doorAnimationCoroutine = StartCoroutine(AnimateDoor(open));
     }
 
-    public IEnumerator AnimateDoor(bool open) // Door Animation function
+    public IEnumerator AnimateDoor(bool open)
     {
         UnityEngine.Quaternion targetRotation = open ? openRotation : closedRotation;
         while (UnityEngine.Quaternion.Angle(transform.rotation, targetRotation) > 0.1f)
@@ -138,7 +170,13 @@ public class BlockchainDoor : NetworkBehaviour
         transform.rotation = targetRotation;
     }
 
-    public async Task GrantAccess(string userAddress, string privateKey) // Grants Access via transaction in smart contract
+    public async Task GrantAccess(
+        string userAddress, 
+        string privateKey, 
+        AccessRole role = AccessRole.Default, 
+        bool grantPhysicalAccess = true, 
+        bool grantDigitalAccess = true, 
+        uint expirationMinutes = 0)
     {
         if (string.IsNullOrEmpty(userAddress) || userAddress.Length != 42 || !userAddress.StartsWith("0x"))
         {
@@ -150,41 +188,115 @@ public class BlockchainDoor : NetworkBehaviour
         {
             var account = new Account(privateKey);
             var web3WithAccount = new Web3(account, rpcUrl);
+            web3WithAccount.TransactionManager.UseLegacyAsDefault = true;
+            
             var contract = web3WithAccount.Eth.GetContract(abi, contractAddress);
+            
+            string callerAddress = account.Address;
+            Debug.Log($"Calling from address: {callerAddress}");
+            
+            var ownerFunction = contract.GetFunction("owner");
+            string ownerAddress = await ownerFunction.CallAsync<string>();
+            bool isOwner = callerAddress.ToLowerInvariant() == ownerAddress.ToLowerInvariant();
+            
+            var accessListFunction = contract.GetFunction("accessList");
+            var callerInfo = await accessListFunction.CallDeserializingToObjectAsync<AccessInfoDTO>(callerAddress);
+            
+            Debug.Log($"Caller role: {(AccessRole)callerInfo.Role}, Physical: {callerInfo.HasPhysicalAccess}, " +
+                     $"Digital: {callerInfo.HasDigitalAccess}, Expiration: {(callerInfo.AccessExpiration == 0 ? "Never" : DateTime.UnixEpoch.AddSeconds(callerInfo.AccessExpiration).ToString())}");
+            
             var grantAccessFunction = contract.GetFunction("grantAccess");
-
-            Debug.Log($"Granting access to: {userAddress}");
+            
+            uint expirationTimestamp = 0;
+            if (expirationMinutes > 0)
+            {
+                expirationTimestamp = (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds() + (expirationMinutes * 60);
+            }
+    
+            try {
+                await grantAccessFunction.CallAsync<object>(
+                    userAddress,      
+                    (byte)role,
+                    grantPhysicalAccess,
+                    grantDigitalAccess,
+                    expirationTimestamp,
+                    new { from = account.Address }
+                );
+                
+                Debug.Log("Call simulation succeeded. Proceeding with transaction.");
+            }
+            catch (Exception callEx)
+            {
+                Debug.LogError($"Call simulation failed with reason: {callEx.Message}");
+                if (callEx.Message.Contains("Only admin"))
+                {
+                    Debug.LogError("Error: Your account does not have admin privileges");
+                    return;
+                }
+                if (callEx.Message.Contains("Only owner"))
+                {
+                    Debug.LogError("Error: Only the owner can grant admin role");
+                    return;
+                }
+            }
+            
+            Debug.Log($"Sending grant access transaction...");
+            
             var txHash = await grantAccessFunction.SendTransactionAsync(
                 account.Address,
-                new HexBigInteger(300000),
+                new HexBigInteger(800000),
                 new HexBigInteger(0),
                 new HexBigInteger(0),
-                userAddress
+                userAddress,
+                (byte)role,
+                grantPhysicalAccess,
+                grantDigitalAccess,
+                expirationTimestamp
             );
 
             TransactionReceipt receipt = null;
-            while (receipt == null)
+            int retryCount = 0;
+            while (receipt == null && retryCount < 10)
             {
                 await Task.Delay(1000);
-                receipt = await web3WithAccount.Eth.Transactions.GetTransactionReceipt.SendRequestAsync(txHash);
+                try 
+                {
+                    receipt = await web3WithAccount.Eth.Transactions.GetTransactionReceipt.SendRequestAsync(txHash);
+                    retryCount++;
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"Attempt {retryCount}: Failed to get receipt: {ex.Message}");
+                    if (retryCount >= 10)
+                        throw;
+                }
             }
 
-            if (receipt.Status.Value == 1)
+            if (receipt != null && receipt.Status.Value == 1)
             {
                 Debug.Log("Access granted successfully to " + userAddress);
             }
+            else if (receipt != null)
+            {
+                Debug.LogError($"Failed to grant access: Status {receipt.Status.Value}, Gas Used: {receipt.GasUsed.Value}");
+            }
             else
             {
-                Debug.LogError("Failed to grant access: " + receipt.Status.Value);
+                Debug.LogError("Failed to get transaction receipt after multiple attempts");
             }
         }
         catch (Exception ex)
         {
             Debug.LogError($"Error granting access: {ex.Message}");
+            if (ex.InnerException != null)
+            {
+                Debug.LogError($"Inner exception: {ex.InnerException.Message}");
+            }
+            Debug.LogError($"Stack trace: {ex.StackTrace}");
         }
     }
 
-    public async Task RevokeAccess(string userAddress, string privateKey) // Revokes access via transaction in smart contract
+    public async Task RevokeAccess(string userAddress, string privateKey)
     {
         if (string.IsNullOrEmpty(userAddress) || userAddress.Length != 42 || !userAddress.StartsWith("0x"))
         {
@@ -230,36 +342,6 @@ public class BlockchainDoor : NetworkBehaviour
         }
     }
 
-    public async Task<List<string>> GetAccessList(string ownerAddress) // Get accesslist from the smart contract
-    {
-        try
-        {
-            var handler = web3.Eth.GetContractQueryHandler<GetAccessListFunction>();
-            var result = await handler.QueryAsync<GetAccessListOutputDTO>(contractAddress, new GetAccessListFunction { FromAddress = ownerAddress });
-            
-            if (result.AccessList != null && result.AccessList.Count > 0)
-            {
-                Debug.Log("Access List:");
-                foreach (var address in result.AccessList)
-                {
-                    Debug.Log(address);
-                }
-            }
-            else
-            {
-                Debug.Log("No addresses have access.");
-            }
-
-            return result.AccessList;
-        }
-        catch (Exception ex)
-        {
-            Debug.LogError("Error getting access list: " + ex.Message);
-            return null;
-        }
-    }
-
-
     [Function("getAccessList", typeof(GetAccessListOutputDTO))]
     public class GetAccessListFunction : FunctionMessage {}
 
@@ -267,5 +349,105 @@ public class BlockchainDoor : NetworkBehaviour
     public class GetAccessListOutputDTO : IFunctionOutputDTO
     {
         [Parameter("address[]", 0)] public List<string> AccessList { get; set; }
+    }
+
+    public async Task<List<AccessDetails>> GetAccessList(string privateKey)
+    {
+        List<AccessDetails> accessDetailsList = new List<AccessDetails>();
+    
+        try
+        {
+            var account = new Account(privateKey);
+            Debug.Log($"Getting access list as: {account.Address}");
+    
+            var web3WithAccount = new Web3(account, rpcUrl);
+            web3WithAccount.TransactionManager.UseLegacyAsDefault = true;
+    
+            var contract = web3WithAccount.Eth.GetContract(abi, contractAddress);
+            var getAccessListFunction = contract.GetFunction("getAccessList");
+    
+            Debug.Log("Calling getAccessList function...");
+    
+            var result = await getAccessListFunction.CallAsync<List<string>>();
+    
+            Debug.Log($"Access list retrieved, contains {(result != null ? result.Count : 0)} addresses");
+            
+            if (result == null || result.Count == 0)
+            {
+                Debug.Log("No addresses have access.");
+                return accessDetailsList;
+            }
+               
+            Debug.Log("Processing Access List:");
+            foreach (var address in result)
+            {
+                try
+                {
+                    var accessInfoFunction = contract.GetFunction("accessList");
+                    var accessInfo = await accessInfoFunction.CallDeserializingToObjectAsync<AccessInfoDTO>(address);
+                    
+                    var details = new AccessDetails
+                    {
+                        Address = address,
+                        Role = (AccessRole)accessInfo.Role,
+                        HasPhysicalAccess = accessInfo.HasPhysicalAccess,
+                        HasDigitalAccess = accessInfo.HasDigitalAccess,
+                        ExpirationTime = accessInfo.AccessExpiration
+                    };
+                    
+                    accessDetailsList.Add(details);
+                    
+                    Debug.Log($"Address: {details.Address}, " +
+                             $"Role: {details.Role}, " +
+                             $"Physical: {details.HasPhysicalAccess}, " +
+                             $"Digital: {details.HasDigitalAccess}, " +
+                             $"Expires: {(details.ExpirationTime == 0 ? "Never" : DateTime.UnixEpoch.AddSeconds(details.ExpirationTime).ToString())}");
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"Error processing address {address}: {ex.Message}");
+                }
+            }
+            
+            return accessDetailsList;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Failed to get access list: {ex.Message}");
+            if (ex.InnerException != null)
+                Debug.LogError($"Inner exception: {ex.InnerException.Message}");
+            Debug.LogError($"Stack trace: {ex.StackTrace}");
+            return accessDetailsList;
+        }
+    }
+
+    public class AccessDetails
+    {
+        public string Address { get; set; }
+        public AccessRole Role { get; set; }
+        public bool HasPhysicalAccess { get; set; }
+        public bool HasDigitalAccess { get; set; }
+        public uint ExpirationTime { get; set; }
+    }
+
+    [FunctionOutput]
+    public class AccessInfoDTO : IFunctionOutputDTO
+    {
+        [Parameter("uint8", "role", 0)] 
+        public byte Role { get; set; }
+        
+        [Parameter("bool", "hasPhysicalAccess", 1)] 
+        public bool HasPhysicalAccess { get; set; }
+        
+        [Parameter("bool", "hasDigitalAccess", 2)] 
+        public bool HasDigitalAccess { get; set; }
+        
+        [Parameter("uint256", "accessExpiration", 3)] 
+        public uint AccessExpiration { get; set; }
+    }
+
+    public string GetDoorTypeString()
+    {
+        return isPhysicalDoor ? "Physical" : "Digital";
     }
 }

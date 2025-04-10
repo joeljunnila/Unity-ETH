@@ -11,10 +11,11 @@ GameObject:
   - component: {fileID: 6562707566322908845}
   - component: {fileID: 5252450674147549821}
   - component: {fileID: 60463311887911837}
-  - component: {fileID: 7462852245571967546}
+  - component: {fileID: 226777979519011024}
   - component: {fileID: 3265636246947738057}
+  - component: {fileID: 981120432750077399}
   m_Layer: 0
-  m_Name: Door_Hinge
+  m_Name: Door_Hinge 1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -48,7 +49,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GlobalObjectIdHash: 725680601
+  GlobalObjectIdHash: 295144080
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -77,14 +78,14 @@ MonoBehaviour:
   openAngle: 90
   openSpeed: 2
   interactionRange: 3
-  doorSigner: {fileID: 7462852245571967546}
+  doorSigner: {fileID: 226777979519011024}
   isPhysicalDoor: 1
-  doorName: DigitalDoor
+  doorName: Physical Door
   closedRotation: {x: 0, y: 0, z: 0, w: 0}
   openRotation: {x: 0, y: 0, z: 0, w: 0}
   isOpen:
     m_InternalValue: 0
---- !u!114 &7462852245571967546
+--- !u!114 &226777979519011024
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -96,7 +97,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fc24996791cd8fc459bb6519c024244b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  isPhysicalDoor: 0
+  isPhysicalDoor: 1
 --- !u!135 &3265636246947738057
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -118,6 +119,24 @@ SphereCollider:
   serializedVersion: 3
   m_Radius: 4
   m_Center: {x: 0, y: 0, z: -1}
+--- !u!114 &981120432750077399
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1075850090532464275}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6afba28592dc254479fb42566b86d240, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  npcPrefab: {fileID: 0}
+  spawnPoint: {fileID: 0}
+  spawnOffset: 1.5
+  walletDisplay: {fileID: 0}
+  onlySpawnForPhysicalDoors: 1
 --- !u!1 &7384440182360425420
 GameObject:
   m_ObjectHideFlags: 0
@@ -183,7 +202,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 142e0e2593d008b41a37c956af030126, type: 2}
+  - {fileID: 2100000, guid: 876b68c138464ba48b40701392d2fcac, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
