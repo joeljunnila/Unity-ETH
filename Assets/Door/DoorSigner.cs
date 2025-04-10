@@ -16,6 +16,8 @@ public class DoorSigner : MonoBehaviour
     private Web3 web3;
     private string abi;
 
+
+    // Called when the script instance is being loaded
     void Start()
     {
 
@@ -33,11 +35,12 @@ public class DoorSigner : MonoBehaviour
         web3 = new Web3(rpcUrl);
         web3.TransactionManager.UseLegacyAsDefault = true;
 
+        // Get the parent BlockchainDoor component and synchronize door type
+
         BlockchainDoor parentDoor = GetComponent<BlockchainDoor>();
         if (parentDoor != null)
         {
             isPhysicalDoor = parentDoor.isPhysicalDoor;
-            Debug.Log($"DoorSigner synchronized with door type: {(isPhysicalDoor ? "Physical" : "Digital")}");
         }
     }
 
@@ -55,7 +58,8 @@ public class DoorSigner : MonoBehaviour
         }
     }
 
-    public async void SignDoorTransaction(string playerAddress)
+    // Sends a transaction to the blockchain to authorize door opening
+    public async void SignDoorTransaction(string playerAddress) 
     {
         var account = new Account(doorPrivateKey);
         var web3WithAccount = new Web3(account, rpcUrl);
@@ -63,6 +67,8 @@ public class DoorSigner : MonoBehaviour
 
         var contract = web3WithAccount.Eth.GetContract(abi, contractAddress);
         var openDoorFunction = contract.GetFunction("openDoor");
+
+        // Send the transaction to the blockchain to open the door
 
         var txHash = await openDoorFunction.SendTransactionAsync(
             account.Address,

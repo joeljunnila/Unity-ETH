@@ -68,7 +68,6 @@ public class BlockchainDoor : NetworkBehaviour
         {
             doorSigner = GetComponent<DoorSigner>();
         }
-        Debug.Log($"Initialized {(isPhysicalDoor ? "Physical" : "Digital")} {doorName}");
     }
 
     void GetABI()

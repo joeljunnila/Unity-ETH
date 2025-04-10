@@ -1,10 +1,10 @@
 {
   "ethereum": {
-    "doorPrivateKey": "",
-    "tempPrivateKey": "",
-    "contractUserUser": "",
-    "contractUserDevice": "",
-    "contractDeviceDevice": "",
+    "doorPrivateKey": "f2af258ee3733513333652be19197ae7eace4b5e79a346cf25b02a857e6043f3",
+    "tempPrivateKey": "e417a0645214677eb9820ab5775eab4596538a06ff8c31a8c655c08a44139a37",
+    "contractUserUser": "0x09B297814B2127db22CC5c5BC034f66FAfE454D7",
+    "contractUserDevice": "0xF683BB977F35535a727E38a207297060B24aCdFd",
+    "contractDeviceDevice": "0x9416fcF03A6973b7a876AE7B8ca42E6Ea2642A17",
     "rpcUrl": "http://127.0.0.1:8545"
   },
   "network": {

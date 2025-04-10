@@ -50,7 +50,7 @@ public class UserUserContract : MonoBehaviour
 
     async Task GetABIAsync()
     {
-        string path = Path.Combine(Application.dataPath, "Blockchain/ABI/UserUserContract.json");
+        string path = Path.Combine(Application.dataPath, "Blockchain/ABI/UserUser.json");
         if (File.Exists(path))
         {
             abi = await Task.Run(() => File.ReadAllText(path));

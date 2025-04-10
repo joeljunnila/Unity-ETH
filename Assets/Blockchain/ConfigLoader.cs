@@ -9,7 +9,7 @@ public class ConfigLoader : MonoBehaviour
         LoadConfig();
     }
 
-    private void LoadConfig()
+    private void LoadConfig() // Load the configKeys.json file for contract addresses and private keys
     {
         TextAsset configText = Resources.Load<TextAsset>("configKeys");
         if (configText != null)

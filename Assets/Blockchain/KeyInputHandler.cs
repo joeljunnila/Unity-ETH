@@ -4,8 +4,6 @@ using UnityEngine.UI;
 using Unity.Netcode;
 using Nethereum.Web3;
 using Nethereum.Web3.Accounts;
-using System.Threading.Tasks;
-using System.Collections.Generic;
 
 public class KeyInputHandler : NetworkBehaviour
 {
@@ -35,6 +33,9 @@ public class KeyInputHandler : NetworkBehaviour
 
     void Start()
     {
+        // Set up UI button listeners and initialize dropdowns, toggles, etc.
+        // Also handles contract event subscriptions and player door registration.
+
         sendButton.onClick.AddListener(OnSendButtonClick);
         sendButton.interactable = false;
         signButton.onClick.AddListener(OnSignButtonClick);
@@ -95,8 +96,7 @@ public class KeyInputHandler : NetworkBehaviour
         }
     }
 
-    // *** DOOR-RELATED METHODS***
-    private async void OnGrantAccessButtonClick()
+    private async void OnGrantAccessButtonClick() // Called when the "Grant Access" button is clicked; grants blockchain-based door access.
     {
         BlockchainDoor door = FindClosestDoor();
         if (door != null)
@@ -126,7 +126,7 @@ public class KeyInputHandler : NetworkBehaviour
         }
     }
 
-    private async void OnRevokeAccessButtonClick()
+    private async void OnRevokeAccessButtonClick() // Called when "Revoke Access" is clicked; revokes door access on the blockchain.
     {
         BlockchainDoor door = FindClosestDoor();
         if (door != null)
@@ -135,7 +135,7 @@ public class KeyInputHandler : NetworkBehaviour
         }
     }
 
-    private BlockchainDoor FindClosestDoor()
+    private BlockchainDoor FindClosestDoor() // Returns the nearest door to the player (used for granting/revoking access).
     {
         BlockchainDoor[] allDoors = FindObjectsOfType<BlockchainDoor>();
         BlockchainDoor closestDoor = null;
@@ -154,7 +154,7 @@ public class KeyInputHandler : NetworkBehaviour
         return closestDoor;
     }
 
-    private void RequestDoorAccess()
+    private void RequestDoorAccess() // Called when the player presses 'E'; sends door open request if nearby.
     {
         string playerAddress = publicKey.Value.Value;
 
@@ -188,7 +188,7 @@ public class KeyInputHandler : NetworkBehaviour
     }
 
 
-    private void HandleTransferSigned(string receiver, decimal amount, string message)
+    private void HandleTransferSigned(string receiver, decimal amount, string message) // Handles event when a transfer is signed by a smart contract.
     {
         if (receiver.ToLower() == publicKey.Value.ToString().ToLower())
         {
@@ -197,13 +197,13 @@ public class KeyInputHandler : NetworkBehaviour
         }
     }
 
-    private void InitializeWeb3()
+    private void InitializeWeb3() // Initializes the Web3 object for Ethereum transactions.
     {
         web3 = new Web3("http://localhost:8545");
         web3.TransactionManager.UseLegacyAsDefault = true;
     }
 
-    private async void OnSendButtonClick()
+    private async void OnSendButtonClick() // Transfers value and message to the overlapping player when "Send" is pressed using the smart contract.
     {
         if (overlappingPlayer != null && contractScript != null)
         {
@@ -236,7 +236,7 @@ public class KeyInputHandler : NetworkBehaviour
         }
     }
 
-    private async void OnSignButtonClick()
+    private async void OnSignButtonClick() // Signs an initiated transfer from the contract using the private key when "Sign" is pressed.
     {
         string recipientPrivateKey = privateKeyInputField.text;
         if (!string.IsNullOrEmpty(recipientPrivateKey))
@@ -249,12 +249,14 @@ public class KeyInputHandler : NetworkBehaviour
         }
     }
 
-    private void OnPrivateKeyEndEdit(string newPrivateKey)
+    private void OnPrivateKeyEndEdit(string newPrivateKey) // Called when the user finishes editing the private key input field.
     {
         if (!string.IsNullOrEmpty(newPrivateKey))
         {
             try
             {
+                // Extracts public key from private key and sends it to server for syncing.
+
                 var chainId = ConfigLoader.config.network.chainId;
                 var account = new Account(newPrivateKey, chainId);
                 if (IsClient && !IsServer)
@@ -279,12 +281,12 @@ public class KeyInputHandler : NetworkBehaviour
         }
     }
     
-    public string GetPublicAddress()
+    public string GetPublicAddress() // Returns the current public address for this player.
     {
         return publicKey.Value.ToString();
     }
     
-    private async void UpdateWalletAddressAndBalance()
+    private async void UpdateWalletAddressAndBalance() // Updates the wallet address and balance UI from blockchain data.
     {
         string privateKey = privateKeyInputField.text;
         if (string.IsNullOrEmpty(privateKey) || privateKey.Length != 66 || !privateKey.StartsWith("0x"))
@@ -313,12 +315,12 @@ public class KeyInputHandler : NetworkBehaviour
     }
 
     [ServerRpc(RequireOwnership = false)]
-    private void SubmitPublicKeyServerRpc(string key)
+    private void SubmitPublicKeyServerRpc(string key) // Called by client to submit public key to server.
     {
         publicKey.Value = new NetString { Value = key };
     }
 
-    private void OnPublicKeyChanged(NetString previous, NetString current)
+    private void OnPublicKeyChanged(NetString previous, NetString current) // Triggered when publicKey NetworkVariable changes; updates client display.
     {
         if (IsClient)
         {
@@ -326,7 +328,7 @@ public class KeyInputHandler : NetworkBehaviour
         }
     }
 
-    private void UpdateUsernameDisplay(string key)
+    private void UpdateUsernameDisplay(string key) // Updates the displayed player name using a short version of the address.
     {
         if (key.Length <= 12)
         {
@@ -338,7 +340,7 @@ public class KeyInputHandler : NetworkBehaviour
         }
     }
 
-    private void OnTriggerEnter(Collider other)
+    private void OnTriggerEnter(Collider other)   // Trigger event when another player enters this player’s collider.
     {
         if (other.CompareTag("Player"))
         {
@@ -347,7 +349,7 @@ public class KeyInputHandler : NetworkBehaviour
         }
     }
 
-    private void OnTriggerExit(Collider other)
+    private void OnTriggerExit(Collider other) // Trigger event when another player exits this player’s collider.
     {
         if (other.CompareTag("Player"))
         {
@@ -356,7 +358,7 @@ public class KeyInputHandler : NetworkBehaviour
         }
     }
 
-    public override void OnNetworkSpawn()
+    public override void OnNetworkSpawn() // Called when the object spawns in the network.
     {
         if (IsClient)
         {
@@ -369,7 +371,7 @@ public class KeyInputHandler : NetworkBehaviour
         base.OnNetworkSpawn();
     }
 
-    public override void OnDestroy()
+    public override void OnDestroy() // Cleans up listeners and events when the object is destroyed.
     {
         publicKey.OnValueChanged -= OnPublicKeyChanged;
         if (privateKeyInputField != null)
@@ -383,7 +385,7 @@ public class KeyInputHandler : NetworkBehaviour
         base.OnDestroy();
     }
 
-    void Update()
+    void Update() // Handles automatic wallet updates and input-driven actions like door access or toggling admin UI in realtime.
     {
         if (IsClient && !string.IsNullOrEmpty(privateKeyInputField.text))
         {

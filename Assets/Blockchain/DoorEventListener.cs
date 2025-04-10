@@ -14,8 +14,8 @@ using TMPro;
 
 public class DoorEventListener : NetworkBehaviour
 {
-    private string rpcUrl = "http://127.0.0.1:8545";
-    private string contractAddress = "0x226b94366860383B9527c25c62E85d76367eE92c";
+    private string rpcUrl;
+    private string contractAddress;
     private Web3 web3;
     private string abi;
     
@@ -52,6 +52,15 @@ public class DoorEventListener : NetworkBehaviour
     
     void Start()
     {
+        if (ConfigLoader.config == null || ConfigLoader.config.ethereum == null)
+        {
+            Debug.LogError("Ethereum config is not loaded. Check if ConfigLoader has run.");
+            return;
+        }
+
+        rpcUrl = ConfigLoader.config.ethereum.rpcUrl;
+        contractAddress = ConfigLoader.config.ethereum.contractUserDevice;
+
         GetABI();
         web3 = new Web3(rpcUrl);
         
@@ -86,8 +95,6 @@ public class DoorEventListener : NetworkBehaviour
             
             // Start monitoring door events using polling
             StartCoroutine(MonitorDoorEvents());
-            
-            Debug.Log("Successfully set up door event monitoring");
         }
         catch (Exception ex)
         {
