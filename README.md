@@ -22,7 +22,9 @@ Installation:
 
 - Clone the Repository:
 
-- git clone https://github.com/joeljunnila/Unity-ETH.git
+- git clone https://github.com/ETH-Unity/UnityNethereum
+
+- git clone https://github.com/ETH-Unity/EthNetwork
 
 - Open the Project
 
@@ -62,7 +64,7 @@ Via OpenUPM:
 
 Config File Setup:
 
-- The project includes a configKeys.json file in Resources folder. Fill those placeholders with your networkID, door device's private key, temperature sensor device's private key and deployed smart contract addresses.
+- The project includes a configKeys.json file in Resources folder. Fill those placeholders with your networkID, rpcUrl, door device's private key, temperature sensor device's private key and deployed smart contract addresses.
 
 Network Manager Setup:
 
@@ -87,7 +89,7 @@ Buttons:
   
 - Interact: "E"
   
-- Admin panel: "Q"
+- Admin panel: "Q" - Opens UI buttons for Access control
 
 Project Structure
 
