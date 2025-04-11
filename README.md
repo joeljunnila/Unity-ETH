@@ -82,21 +82,22 @@ Performing Ethereum Transactions:
 
 - When the wallet is connected, interact with the in-game UI to initiate Ethereum transactions. The project includes functionalities to send Ether and message to other players and interact with smart contracts.
 
+Buttons:
+- Movement: WASD
+  
+- Interact: "E"
+  
+- Admin panel: "Q"
+
 Project Structure
 
-- Assets/Scripts/Networking: Contains scripts related to multiplayer networking using Netcode for GameObjects.
+- Assets/Blockchain: Contains scripts related to blockchain and ABI files.
 
-- Assets/Scripts/Ethereum: Holds scripts facilitating Ethereum blockchain interactions using Nethereum.
+- Assets/Network: Contains scripts related to multiplayer networking usig Netcode for GameObjects.
 
-- Assets/Prefabs: Includes pre-configured GameObjects for players and UI elements.
+- Assets/Player: Contains files related to the player, movement and camera.
 
-### Recent Updates:
-
-March 27, 2025: Removed obsolete UI elements and fixed user-to-user smart contract scripts.
-
-March 26, 2025: Fixed lighting issues and added functionality to specify amounts in Ether send button.
-
-March 21, 2025: Added a button for sending transactions and implemented various bug fixes.
+- Assets/Room: Contains all the files for the room scene, door and fan functionalities included.
 
 ### Contributing
 
