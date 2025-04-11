@@ -21,7 +21,7 @@ public class KeyInputHandler : NetworkBehaviour
     [SerializeField] private GameObject adminCanvas;
     [SerializeField] private TMP_Dropdown roleDropdown;
     [SerializeField] private Toggle physicalAccessToggle, digitalAccessToggle;
-    [SerializeField] private Button grantAccess, revokeAccess, listAccess;
+    [SerializeField] private Button grantAccess, revokeAccess;
     [SerializeField] private TMP_InputField doorAccessInputField, expirationHoursField;
 
     private BlockchainDoor blockchainDoor;  
@@ -174,7 +174,6 @@ public class KeyInputHandler : NetworkBehaviour
 
         if (closestDoor != null && !string.IsNullOrEmpty(playerAddress))
         {
-            Debug.Log($"Attempting to access {(closestDoor.isPhysicalDoor ? "Physical" : "Digital")} {closestDoor.doorName}");
             closestDoor.RequestDoorOpenServerRpc(playerAddress);
         }
         else if (closestDoor == null)

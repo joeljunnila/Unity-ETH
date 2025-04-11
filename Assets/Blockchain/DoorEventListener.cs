@@ -21,6 +21,7 @@ public class DoorEventListener : NetworkBehaviour
     
     // Event handler for door openings only
     private Event<DoorOpenedEventDTO> doorOpenedEvent;
+    private TMP_Text npcWalletDisplay;
     
     [Header("NPC Spawning")]
     [SerializeField] 
@@ -35,10 +36,6 @@ public class DoorEventListener : NetworkBehaviour
     [Tooltip("Random offset applied to the spawn position")]
     [Range(0.5f, 5f)]
     private float spawnOffset = 1.5f;
-    
-    [SerializeField]
-    [Tooltip("Optional text component to display wallet address")]
-    private TextMeshProUGUI walletDisplay;
 
     [SerializeField]
     [Tooltip("Only spawn NPCs for physical door access")]
@@ -49,6 +46,10 @@ public class DoorEventListener : NetworkBehaviour
     
     // List of player wallet addresses currently in the game
     private List<string> knownPlayerAddresses = new List<string>();
+
+    private const string LastBlockKey = "LastProcessedBlock";
+    private BlockParameter lastBlock = null;
+
     
     void Start()
     {
@@ -81,17 +82,38 @@ public class DoorEventListener : NetworkBehaviour
             Debug.LogError("Failed to load contract ABI file: " + path);
         }
     }
+
+    private void LoadLastBlock()
+    {
+        if (PlayerPrefs.HasKey(LastBlockKey))
+        {
+            BigInteger blockNum = BigInteger.Parse(PlayerPrefs.GetString(LastBlockKey));
+            lastBlock = new BlockParameter(new Nethereum.Hex.HexTypes.HexBigInteger(blockNum));
+        }
+    }
+
+    private void SaveLastBlock(BigInteger blockNum)
+    {
+        PlayerPrefs.SetString(LastBlockKey, blockNum.ToString());
+        PlayerPrefs.Save();
+    }
     
     IEnumerator SetupDoorEventListener()
     {
         yield return new WaitForSeconds(1f); // Small delay to ensure connection is ready
         
+        var blockNumberTask = web3.Eth.Blocks.GetBlockNumber.SendRequestAsync();
+        yield return new WaitUntil(() => blockNumberTask.IsCompleted);
+
         try
         {
             var contract = web3.Eth.GetContract(abi, contractAddress);
             
             // Set up door opened event handler correctly
             doorOpenedEvent = contract.GetEvent<DoorOpenedEventDTO>();
+
+            var currentBlockNumber = blockNumberTask.Result.Value;
+            lastBlock = new BlockParameter(new Nethereum.Hex.HexTypes.HexBigInteger(currentBlockNumber + 1));
             
             // Start monitoring door events using polling
             StartCoroutine(MonitorDoorEvents());
@@ -106,8 +128,6 @@ public class DoorEventListener : NetworkBehaviour
     {
         // Create filter to get all door opened events
         var filterAll = doorOpenedEvent.CreateFilterInput();
-        BlockParameter lastBlock = null;
-        
         while (true)
         {
             Task<List<EventLog<DoorOpenedEventDTO>>> getAllEventsTask = null;
@@ -276,10 +296,11 @@ public class DoorEventListener : NetworkBehaviour
         GameObject npc = Instantiate(npcPrefab, spawnPosition, spawnPoint.rotation);
         
         // Configure the NPC - set a wallet text display if available
-        var npcWalletDisplay = npc.GetComponentInChildren<TextMeshProUGUI>();
+        npcWalletDisplay = npc.GetComponentInChildren<TMP_Text>();
+
         if (npcWalletDisplay != null)
         {
-            string shortAddress = walletAddress.Substring(0, 6) + "..." + walletAddress.Substring(walletAddress.Length - 4);
+            string shortAddress = walletAddress.Substring(0, 4) + "...";
             npcWalletDisplay.text = shortAddress;
         }
         
