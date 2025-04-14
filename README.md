@@ -41,7 +41,7 @@ Unity-ETH is a Unity project that combines multiplayer gaming capabilities using
    - Open Window > Package Manager
    - Click the + button and select "Add package by name..."
    - Enter `com.nethereum.unity` and click Add
-   - Enter `com.nethereum.multiplayer.playmode` and click Add
+   - Enter `com.multiplayer.playmode` and click Add
 
    Manual Installation:
    - Download the latest Nethereum Unity package from the official repository
