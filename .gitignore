@@ -72,7 +72,3 @@ crashlytics-build.properties
 # Temporary auto-generated Android Assets
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
-
-# Ignore all files in the ABI directory
-Assets/Blockchain/ABI/*.json
-Assets/Blockchain/ABI/*.json.meta
