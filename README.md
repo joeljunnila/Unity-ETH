@@ -66,6 +66,10 @@ Unity-ETH is a Unity project that combines multiplayer gaming capabilities using
 
 ## Usage
 
+### Loading the Scene
+
+- Navigate to the Room folder in Unity and start the BasicRoom-scene and start the game
+
 ### Starting a Multiplayer Session
 
 - Use the in-game UI to host or join multiplayer sessions
