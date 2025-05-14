@@ -171,10 +171,10 @@ public class DoorEventListener : NetworkBehaviour
                     foreach (var log in eventLogs)
                     {
                         string walletAddress = log.Event.User;
-                        bool isPhysical = log.Event.IsPhysical;
+                        System.Numerics.BigInteger doorId = log.Event.DoorId;
                                      
                         // Check if this address is unknown and spawn an NPC if needed
-                        CheckAndSpawnNPC(walletAddress, isPhysical);
+                        CheckAndSpawnNPC(walletAddress, doorId);
                     }
                     
                     // Update the last known block to avoid duplicates
@@ -211,18 +211,12 @@ public class DoorEventListener : NetworkBehaviour
         }
     }
     
-    private void CheckAndSpawnNPC(string walletAddress, bool isPhysical)
+    private void CheckAndSpawnNPC(string walletAddress, System.Numerics.BigInteger doorId)
     {
         // Skip if address is empty/invalid
         if (string.IsNullOrEmpty(walletAddress))
             return;
             
-        // Only spawn NPCs for physical door access if configured that way
-        if (onlySpawnForPhysicalDoors && !isPhysical)
-        {
-            return;
-        }
-        
         // First check if this address belongs to any player in the scene
         if (IsWalletAddressInScene(walletAddress))
         {
@@ -316,14 +310,13 @@ public class DoorEventListener : NetworkBehaviour
         Debug.Log($"Spawned NPC for external wallet: {walletAddress}");
     }
     
-    // Updated Event DTO for door opened events with isPhysical parameter
+    // Updated Event DTO for door opened events with doorId parameter
     [Event("DoorOpened")]
     public class DoorOpenedEventDTO : IEventDTO
     {
         [Parameter("address", "user", 1, true)]
         public string User { get; set; }
-        
-        [Parameter("bool", "isPhysical", 2, false)]
-        public bool IsPhysical { get; set; }
+        [Parameter("uint256", "doorId", 2, false)]
+        public System.Numerics.BigInteger DoorId { get; set; }
     }
 }

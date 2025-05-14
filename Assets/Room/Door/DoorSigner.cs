@@ -11,8 +11,8 @@ public class DoorSigner : MonoBehaviour
     private string rpcUrl;
     private string contractAddress;
     private string doorPrivateKey;
-    [Tooltip("Is this for a physical door (true) or digital door (false)?")]
-    [SerializeField] private bool isPhysicalDoor;
+    private BlockchainDoor.DoorType doorType;
+    private int doorId;
     private Web3 web3;
     private string abi;
 
@@ -40,7 +40,8 @@ public class DoorSigner : MonoBehaviour
         BlockchainDoor parentDoor = GetComponent<BlockchainDoor>();
         if (parentDoor != null)
         {
-            isPhysicalDoor = parentDoor.isPhysicalDoor;
+            doorType = parentDoor.doorType;
+            doorId = parentDoor.doorId;
         }
     }
 
@@ -69,14 +70,13 @@ public class DoorSigner : MonoBehaviour
         var openDoorFunction = contract.GetFunction("openDoor");
 
         // Send the transaction to the blockchain to open the door
-
         var txHash = await openDoorFunction.SendTransactionAsync(
             account.Address,
             new HexBigInteger(3000000),
             new HexBigInteger(0),
             new HexBigInteger(0),
             playerAddress,
-            isPhysicalDoor
+            doorId
         );
 
         Debug.Log("✅ Door opened! Transaction Hash: " + txHash);

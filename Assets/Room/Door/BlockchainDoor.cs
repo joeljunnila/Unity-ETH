@@ -24,11 +24,22 @@ public class BlockchainDoor : NetworkBehaviour
     public float openSpeed = 2f;
     public float interactionRange = 2f;
     [SerializeField] private DoorSigner doorSigner;
-    [Tooltip("Is this a physical door (true) or digital door (false)?")]
-    public bool isPhysicalDoor = true;
+
+    public enum DoorType
+    {
+        Physical,
+        Digital,
+        Admin
+    }
+
+    [Tooltip("Type of this door (Physical, Digital, Admin Room)")]
+    public DoorType doorType = DoorType.Physical;
     
     [Tooltip("Door identifier for debugging")]
     public string doorName = "Door";
+
+    [Tooltip("Unique identifier for this door instance (used in contract calls)")]
+    public int doorId;
 
     public Coroutine doorAnimationCoroutine;
 
@@ -39,7 +50,8 @@ public class BlockchainDoor : NetworkBehaviour
     {
         None = 0,
         Default = 1,
-        Admin = 2
+        Service = 2,
+        Admin = 3
     }
 
     public NetworkVariable<bool> isOpen = new NetworkVariable<bool>(false, 
@@ -81,10 +93,10 @@ public class BlockchainDoor : NetworkBehaviour
         else
         {
             Debug.LogError("Failed to load contract ABI file: " + path);
-        }
-    }
+        }    
+    } 
 
-    public async Task<bool> CheckAccess(string playerAddress)
+    public virtual async Task<bool> CheckAccess(string playerAddress)
     {
         if (string.IsNullOrEmpty(playerAddress))
         {
@@ -93,11 +105,44 @@ public class BlockchainDoor : NetworkBehaviour
         }
 
         var contract = web3.Eth.GetContract(abi, contractAddress);
-        
-        var checkFunction = isPhysicalDoor ? 
-            contract.GetFunction("canOpenPhysicalDoor") : 
-            contract.GetFunction("canOpenDigitalDoor");
-            
+
+        bool isAdmin = (doorType == DoorType.Admin);
+        bool isPhysical = (doorType == DoorType.Physical);
+
+        if (isAdmin)
+        {
+            var adminRoomCheckFunction = contract.GetFunction("canEnterAdminRoom");
+            bool hasAdminRoomAccess = await adminRoomCheckFunction.CallAsync<bool>(playerAddress);
+
+            if (!hasAdminRoomAccess)
+            {
+                Debug.Log($"Admin room access denied for address: {playerAddress}");
+                return false;
+            }
+            // For admin, no further door type check needed (or add if needed)
+            return true;
+        }
+        else
+        {
+            var checkFunction = isPhysical ?
+                contract.GetFunction("canOpenPhysicalDoor") :
+                contract.GetFunction("canOpenDigitalDoor");
+
+            bool hasAccess = await checkFunction.CallAsync<bool>(playerAddress);
+            return hasAccess;
+        }
+    }
+
+    public async Task<bool> CheckAdminRoomAccess(string playerAddress)
+    {
+        if (string.IsNullOrEmpty(playerAddress))
+        {
+            Debug.LogError("Player address is null or empty.");
+            return false;
+        }
+
+        var contract = web3.Eth.GetContract(abi, contractAddress);
+        var checkFunction = contract.GetFunction("canEnterAdminRoom");
         bool hasAccess = await checkFunction.CallAsync<bool>(playerAddress);      
         return hasAccess;
     }
@@ -126,10 +171,10 @@ public class BlockchainDoor : NetworkBehaviour
     {
         var task = CheckAccess(playerAddress);
         yield return new WaitUntil(() => task.IsCompleted);
-
         if (task.Result)
         {
-            Debug.Log($"Access granted to {(isPhysicalDoor ? "physical" : "digital")} {doorName}! Toggling door state...");
+            string doorTypeDesc = doorType.ToString();
+            Debug.Log($"Access granted to {doorTypeDesc} {doorName}! Toggling door state...");
             isOpen.Value = !isOpen.Value;
 
             if (doorSigner != null)
@@ -141,11 +186,11 @@ public class BlockchainDoor : NetworkBehaviour
             {
                 Debug.LogError($"Cannot record access: doorSigner is null on {doorName}");
             }
-            
         }
         else
         {
-            Debug.Log($"Access Denied to {(isPhysicalDoor ? "physical" : "digital")} {doorName}!");
+            string doorTypeDesc = doorType.ToString();
+            Debug.Log($"Access Denied to {doorTypeDesc} {doorName}!");
         }
     }
 
@@ -167,7 +212,7 @@ public class BlockchainDoor : NetworkBehaviour
             yield return null;
         }
         transform.rotation = targetRotation;
-    }
+    }    
 
     public async Task GrantAccess(
         string userAddress, 
@@ -175,6 +220,7 @@ public class BlockchainDoor : NetworkBehaviour
         AccessRole role = AccessRole.Default, 
         bool grantPhysicalAccess = true, 
         bool grantDigitalAccess = true, 
+        bool grantAdminRoomAccess = false,
         uint expirationMinutes = 0)
     {
         if (string.IsNullOrEmpty(userAddress) || userAddress.Length != 42 || !userAddress.StartsWith("0x"))
@@ -200,9 +246,9 @@ public class BlockchainDoor : NetworkBehaviour
             
             var accessListFunction = contract.GetFunction("accessList");
             var callerInfo = await accessListFunction.CallDeserializingToObjectAsync<AccessInfoDTO>(callerAddress);
-            
-            Debug.Log($"Caller role: {(AccessRole)callerInfo.Role}, Physical: {callerInfo.HasPhysicalAccess}, " +
-                     $"Digital: {callerInfo.HasDigitalAccess}, Expiration: {(callerInfo.AccessExpiration == 0 ? "Never" : DateTime.UnixEpoch.AddSeconds(callerInfo.AccessExpiration).ToString())}");
+              Debug.Log($"Caller role: {(AccessRole)callerInfo.Role}, Physical: {callerInfo.HasPhysicalAccess}, " +
+                     $"Digital: {callerInfo.HasDigitalAccess}, Admin Room: {callerInfo.HasAdminRoomAccess}, " +
+                     $"Expiration: {(callerInfo.AccessExpiration == 0 ? "Never" : DateTime.UnixEpoch.AddSeconds(callerInfo.AccessExpiration).ToString())}");
             
             var grantAccessFunction = contract.GetFunction("grantAccess");
             
@@ -210,14 +256,14 @@ public class BlockchainDoor : NetworkBehaviour
             if (expirationMinutes > 0)
             {
                 expirationTimestamp = (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds() + (expirationMinutes * 60);
-            }
-    
+            }            
             try {
                 await grantAccessFunction.CallAsync<object>(
                     userAddress,      
                     (byte)role,
                     grantPhysicalAccess,
                     grantDigitalAccess,
+                    grantAdminRoomAccess,
                     expirationTimestamp,
                     new { from = account.Address }
                 );
@@ -240,8 +286,7 @@ public class BlockchainDoor : NetworkBehaviour
             }
             
             Debug.Log($"Sending grant access transaction...");
-            
-            var txHash = await grantAccessFunction.SendTransactionAsync(
+              var txHash = await grantAccessFunction.SendTransactionAsync(
                 account.Address,
                 new HexBigInteger(800000),
                 new HexBigInteger(0),
@@ -250,6 +295,7 @@ public class BlockchainDoor : NetworkBehaviour
                 (byte)role,
                 grantPhysicalAccess,
                 grantDigitalAccess,
+                grantAdminRoomAccess,
                 expirationTimestamp
             );
 
@@ -384,22 +430,22 @@ public class BlockchainDoor : NetworkBehaviour
                 {
                     var accessInfoFunction = contract.GetFunction("accessList");
                     var accessInfo = await accessInfoFunction.CallDeserializingToObjectAsync<AccessInfoDTO>(address);
-                    
-                    var details = new AccessDetails
+                      var details = new AccessDetails
                     {
                         Address = address,
                         Role = (AccessRole)accessInfo.Role,
                         HasPhysicalAccess = accessInfo.HasPhysicalAccess,
                         HasDigitalAccess = accessInfo.HasDigitalAccess,
+                        HasAdminRoomAccess = accessInfo.HasAdminRoomAccess,
                         ExpirationTime = accessInfo.AccessExpiration
                     };
                     
                     accessDetailsList.Add(details);
-                    
-                    Debug.Log($"Address: {details.Address}, " +
+                      Debug.Log($"Address: {details.Address}, " +
                              $"Role: {details.Role}, " +
                              $"Physical: {details.HasPhysicalAccess}, " +
                              $"Digital: {details.HasDigitalAccess}, " +
+                             $"Admin Room: {details.HasAdminRoomAccess}, " +
                              $"Expires: {(details.ExpirationTime == 0 ? "Never" : DateTime.UnixEpoch.AddSeconds(details.ExpirationTime).ToString())}");
                 }
                 catch (Exception ex)
@@ -418,7 +464,7 @@ public class BlockchainDoor : NetworkBehaviour
             Debug.LogError($"Stack trace: {ex.StackTrace}");
             return accessDetailsList;
         }
-    }
+    }    
 
     public class AccessDetails
     {
@@ -426,6 +472,7 @@ public class BlockchainDoor : NetworkBehaviour
         public AccessRole Role { get; set; }
         public bool HasPhysicalAccess { get; set; }
         public bool HasDigitalAccess { get; set; }
+        public bool HasAdminRoomAccess { get; set; }
         public uint ExpirationTime { get; set; }
     }
 
@@ -441,12 +488,15 @@ public class BlockchainDoor : NetworkBehaviour
         [Parameter("bool", "hasDigitalAccess", 2)] 
         public bool HasDigitalAccess { get; set; }
         
-        [Parameter("uint256", "accessExpiration", 3)] 
+        [Parameter("bool", "hasAdminRoomAccess", 3)] 
+        public bool HasAdminRoomAccess { get; set; }
+        
+        [Parameter("uint256", "accessExpiration", 4)] 
         public uint AccessExpiration { get; set; }
-    }
+    }    
 
     public string GetDoorTypeString()
     {
-        return isPhysicalDoor ? "Physical" : "Digital";
+        return doorType.ToString();
     }
 }

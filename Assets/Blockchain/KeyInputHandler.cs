@@ -16,11 +16,10 @@ public class KeyInputHandler : NetworkBehaviour
     [SerializeField] private TMP_Text UserName, WalletAddress, Balance, ReceivedMessage;
     [SerializeField] private TMP_InputField privateKeyInputField, amountInputField, messageInputField;
     [SerializeField] private Button sendButton, signButton;
-    
     [Header("Admin Panel UI")]
     [SerializeField] private GameObject adminCanvas;
     [SerializeField] private TMP_Dropdown roleDropdown;
-    [SerializeField] private Toggle physicalAccessToggle, digitalAccessToggle;
+    [SerializeField] private Toggle physicalAccessToggle, digitalAccessToggle, adminRoomAccessToggle;
     [SerializeField] private Button grantAccess, revokeAccess;
     [SerializeField] private TMP_InputField doorAccessInputField, expirationHoursField;
 
@@ -41,16 +40,16 @@ public class KeyInputHandler : NetworkBehaviour
         signButton.onClick.AddListener(OnSignButtonClick);
         
         adminCanvas.SetActive(!adminCanvas.activeSelf);
-        
         if (roleDropdown != null)
         {
             roleDropdown.ClearOptions();
             roleDropdown.AddOptions(new System.Collections.Generic.List<string> {
-                "Default", "Admin"
+                "Default", "Service", "Admin"
             });
         }
         if (physicalAccessToggle != null) physicalAccessToggle.isOn = true;
         if (digitalAccessToggle != null) digitalAccessToggle.isOn = true;
+        if (adminRoomAccessToggle != null) adminRoomAccessToggle.isOn = false;
 
         grantAccess.onClick.AddListener(OnGrantAccessButtonClick);
         grantAccess.interactable = false;
@@ -65,6 +64,8 @@ public class KeyInputHandler : NetworkBehaviour
                 revokeAccess.interactable = true;
             }
         });
+
+        SetupRoleDropdownListener();
 
         if (IsClient)
         {
@@ -94,33 +95,71 @@ public class KeyInputHandler : NetworkBehaviour
         {
             doorMonitor.RegisterPlayerAddress(publicKey.Value.Value);
         }
-    }
+    }    
 
     private async void OnGrantAccessButtonClick() // Called when the "Grant Access" button is clicked; grants blockchain-based door access.
-    {
+    {        
         BlockchainDoor door = FindClosestDoor();
         if (door != null)
         {
             BlockchainDoor.AccessRole selectedRole = BlockchainDoor.AccessRole.Default;
-            if (roleDropdown != null && roleDropdown.value == 1)
-                selectedRole = BlockchainDoor.AccessRole.Admin;
-
-            bool grantPhysical = physicalAccessToggle == null || physicalAccessToggle.isOn;
-            bool grantDigital = digitalAccessToggle == null || digitalAccessToggle.isOn;
+            bool grantPhysical = true;
+            bool grantDigital = true;
+            bool grantAdminRoom = false;
+            
+            // Set permissions based on role
+            if (roleDropdown != null)
+            {
+                // Default role (index 0): Physical and Digital access
+                if (roleDropdown.value == 0)
+                {
+                    selectedRole = BlockchainDoor.AccessRole.Default;
+                    // Only use toggle values for Default role
+                    grantPhysical = physicalAccessToggle == null || physicalAccessToggle.isOn;
+                    grantDigital = digitalAccessToggle == null || digitalAccessToggle.isOn;
+                    grantAdminRoom = adminRoomAccessToggle != null && adminRoomAccessToggle.isOn;
+                }
+                // Service role (index 1): Always has Physical and Digital access
+                else if (roleDropdown.value == 1)
+                {
+                    selectedRole = BlockchainDoor.AccessRole.Service;
+                    grantPhysical = true;
+                    grantDigital = true;
+                    grantAdminRoom = true; // Service role gets admin room access
+                    
+                    // Update UI toggles to match
+                    if (physicalAccessToggle != null) physicalAccessToggle.isOn = true;
+                    if (digitalAccessToggle != null) digitalAccessToggle.isOn = true;
+                    if (adminRoomAccessToggle != null) adminRoomAccessToggle.isOn = true;
+                }
+                // Admin role (index 2): Full access to everything
+                else if (roleDropdown.value == 2)
+                {
+                    selectedRole = BlockchainDoor.AccessRole.Admin;
+                    grantPhysical = true;
+                    grantDigital = true;
+                    grantAdminRoom = true;
+                    
+                    // Update UI toggles to match
+                    if (physicalAccessToggle != null) physicalAccessToggle.isOn = true;
+                    if (digitalAccessToggle != null) digitalAccessToggle.isOn = true;
+                    if (adminRoomAccessToggle != null) adminRoomAccessToggle.isOn = true;
+                }
+            }
 
             uint expirationHours = 0;
             if (expirationHoursField != null && !string.IsNullOrEmpty(expirationHoursField.text))
             {
                 if (uint.TryParse(expirationHoursField.text, out uint hours))
                     expirationHours = hours;
-            }
-
+            }            
             await door.GrantAccess(
                 doorAccessInputField.text, 
                 privateKeyInputField.text,
                 selectedRole,
                 grantPhysical,
                 grantDigital,
+                grantAdminRoom,
                 expirationHours
             );
         }
@@ -405,5 +444,41 @@ public class KeyInputHandler : NetworkBehaviour
         {
             adminCanvas.SetActive(!adminCanvas.activeSelf);                       
         }     
+    }
+
+    // Add UI listeners and update role-based permissions when dropdown changes
+    private void SetupRoleDropdownListener()
+    {
+        if (roleDropdown != null)
+        {
+            roleDropdown.onValueChanged.AddListener(OnRoleSelectionChanged);
+        }
+    }
+
+    // Called when a different role is selected in the dropdown
+    private void OnRoleSelectionChanged(int selectedIndex)
+    {
+        // Default role (index 0): No automatic permissions
+        if (selectedIndex == 0)
+        {
+            // Don't change permissions - let user choose
+            Debug.Log("Default role selected - user can set custom permissions");
+        }
+        // Service role (index 1): Always has Physical, Digital and Admin Room access
+        else if (selectedIndex == 1)
+        {
+            if (physicalAccessToggle != null) physicalAccessToggle.isOn = true;
+            if (digitalAccessToggle != null) digitalAccessToggle.isOn = true;
+            if (adminRoomAccessToggle != null) adminRoomAccessToggle.isOn = true;
+            Debug.Log("Service role selected - auto-assigning all access permissions");
+        }
+        // Admin role (index 2): Full access to everything
+        else if (selectedIndex == 2)
+        {
+            if (physicalAccessToggle != null) physicalAccessToggle.isOn = true;
+            if (digitalAccessToggle != null) digitalAccessToggle.isOn = true;
+            if (adminRoomAccessToggle != null) adminRoomAccessToggle.isOn = true;
+            Debug.Log("Admin role selected - auto-assigning all access permissions");
+        }
     }
 }
