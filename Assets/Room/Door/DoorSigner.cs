@@ -60,7 +60,7 @@ public class DoorSigner : MonoBehaviour
     }
 
     // Sends a transaction to the blockchain to authorize door opening
-    public async void SignDoorTransaction(string playerAddress) 
+    public async void SignDoorTransaction(string playerAddress)
     {
         var account = new Account(doorPrivateKey);
         var web3WithAccount = new Web3(account, rpcUrl);
@@ -80,5 +80,7 @@ public class DoorSigner : MonoBehaviour
         );
 
         Debug.Log("✅ Door opened! Transaction Hash: " + txHash);
+        Debug.Log($"Door ID raw: {doorId} | Parsed ID: {(int)(doorId % int.MaxValue)}");
+
     }
 }
