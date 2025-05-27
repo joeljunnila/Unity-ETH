@@ -1,6 +1,8 @@
 {
   "dependencies": {
     "com.nethereum.unity": "4.29.0",
+    "com.reown.appkit.unity": "1.4.0",
+    "com.reown.core": "1.4.0",
     "com.unity.ai.navigation": "2.0.6",
     "com.unity.collab-proxy": "2.7.1",
     "com.unity.ide.rider": "3.0.31",
@@ -52,7 +54,8 @@
       "name": "package.openupm.com",
       "url": "https://package.openupm.com",
       "scopes": [
-        "com.nethereum.unity"
+        "com.nethereum.unity",
+        "com.reown"
       ],
       "overrideBuiltIns": false
     }
