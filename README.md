@@ -36,12 +36,15 @@ Unity-ETH is a Unity project that combines multiplayer gaming capabilities using
    - Add a new Scoped Registry:
      - Name: `package.openupm.com`
      - URL: `https://package.openupm.com`
-     - Scope(s): `com.nethereum.unity`
+     - Scope(s): `com.nethereum.unity` `com.reown`
    - Click Save or Apply
    - Open Window > Package Manager
    - Click the + button and select "Add package by name..."
    - Enter `com.nethereum.unity` and click Add
    - Enter `com.unity.multiplayer.playmode` and click Add
+   - Enter `com.reown.core` and click Add
+   - Enter `com.reown.appkit.unity` and click Add
+   - Enter `com.reown.sign` and click Add
 
    Manual Installation:
    - Download the latest Nethereum Unity package from the official repository
@@ -76,7 +79,7 @@ Unity-ETH is a Unity project that combines multiplayer gaming capabilities using
 
 ### Connect Web3 Wallet
 
-- Use your private key in the "Enter Private Key..." UI input field for the web3 wallet connection
+- Use your Metamask, TrustWallet or WalletConnect to connect your wallet via login button, or private key in the "Enter Private Key..." UI input field
 
 ### Performing Ethereum Transactions
 
@@ -85,7 +88,7 @@ Unity-ETH is a Unity project that combines multiplayer gaming capabilities using
 
 ### Room Access Controlling
 
-- When the owner (deployer of UserDevice-contract) opens the admin panel in the game, he can control other accounts accesses to enter the digital or physical room. If someone outside of the game has access and interacts with the smart contract, he spawns in the physical room as a NPC (simulating real world person and room). 
+- There is three rooms in the scene with different role accesses, physical, digital and admin room. Only admins can control other accounts accesses to the rooms and service role can access any room by default. Admins and service role has access to the admin room, where they can see all the logs of actions happened in the scene (as access granted, door opened etc.) If someone outside of the game has access and interacts with the smart contract, he spawns in the physical room as a NPC (simulating real world person and room). 
 
 ### Controls
 
